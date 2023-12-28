@@ -109,3 +109,22 @@ class Predicate:
 
     def __eq__(self, o):
         return isinstance(o, Predicate) and o.tclass == self.tclass and o.t == self.t
+
+
+class Qualified:
+    def __init__(self, predicates: Array[Predicate], t: Type | Predicate):
+        self.predicates = predicates
+        self.t = t
+
+    def __str__(self):
+        if len(self.predicates) == 0:
+            return str(self.t)
+
+        joined_preds = ', '.join(str(p) for p in self.predicates)
+        return f'{joined_preds} => {self.t}'
+
+    def __repr__(self):
+        return f'Qualified({repr(self.predicates)}, {repr(self.t)})'
+
+    def __eq__(self, o):
+        return isinstance(o, Qualified) and o.predicates == self.predicates and o.t == self.t
