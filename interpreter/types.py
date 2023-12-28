@@ -1,6 +1,5 @@
 # module types
 
-
 class TypeVariable:
     def __init__(self, name: str):
         self.name = name
@@ -112,7 +111,9 @@ class Predicate:
 
 
 class Qualified:
-    def __init__(self, predicates: Array[Predicate], t: Type | Predicate):
+    # This version of ubuntu is too old to get python 3.9+, but the types should be
+    # def __init__(self, predicates: list[Predicate], t: Type | Predicate):
+    def __init__(self, predicates, t):
         self.predicates = predicates
         self.t = t
 
