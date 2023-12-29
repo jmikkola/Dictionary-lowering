@@ -213,6 +213,17 @@ class InstanceDef:
     def __repr__(self):
         return f'InstanceDef({repr(self.qual_pred)}, {repr(self.method_impls)})'
 
+    def get_class(self):
+        pred = self.qual_pred.t
+        return pred.tclass
+
+    def get_type(self):
+        pred = self.qual_pred.t
+        return pred.t
+
+    def get_predicates(self):
+        return self.qual_pred.predicates
+
 
 def add_indent(text):
     indent = '  '
