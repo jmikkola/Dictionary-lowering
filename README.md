@@ -10,4 +10,4 @@ tree-walking interpreter on the backend.
 Just a skeleton project so far
 
 - I'm porting stuff from dicionarypassing.hs
-    - The next thing to port is the function body definitions (literals, expressions, etc)
+    - The next thing to port is the functions that work on types (e.g. substitutions)
