@@ -13,6 +13,19 @@ class LoweringInput:
         self.classes = classes
         self.instances = instances
 
+    def lower(self):
+        context = Context.build(self.classes, self.instances, self.declarations)
+
+        # TODO
+        dictionary_functions = []
+        lowered_declarations = []
+        dictionaries = []
+
+        return LoweringOutput(
+            dictionary_functions + lowered_declarations,
+            dictionaries
+        )
+
 
 class LoweringOutput:
     ''' The output of the lowering pass '''
@@ -46,6 +59,15 @@ class Dictionary:
         return '\n'.join(lines)
 
 
+class Method:
+    ''' represents a method in a class definition '''
+
+    def __init__(self, name, tclass, qualified):
+        self.name = name
+        self.tclass = tclass
+        self.qualified = qualified
+
+
 class Context:
     ''' Internal data used during the lowering process '''
 
@@ -62,3 +84,28 @@ class Context:
         self.methods = methods
         self.instances = instances
         self.classes = classes
+
+    @classmethod
+    def build(cls, classes, instances, declarations):
+        # TODO: Add built-ins to the locals
+        locals = []
+
+        scope = {
+            d.name: d
+            for d in declarations
+        }
+
+        methods = {
+            method.name: Method(method.name, classdef.tclass, method.qualified)
+            for classdef in classes
+            for method in classdef.methods
+        }
+
+        return Context(
+            locals=locals,
+            dict_preds={},
+            scope=scope,
+            methods=methods,
+            instances=instances,
+            classes=classes,
+        )
