@@ -133,7 +133,7 @@ class ELambda(Expression):
         return f'ELambda({repr(self.arg_names)}, {repr(self.body)})'
 
 
-class TypedExpression:
+class TypedExpression(Expression):
     def __init__(self, expr: Expression, t: Type):
         self.expr = expr
         self.t = t
@@ -175,6 +175,9 @@ class MethodDecl:
     def __repr__(self):
         return f'MethodDecl({repr(self.method_name)}, {repr(self.qual_type)})'
 
+    def get_type(self):
+        return self.qual_type.t
+
 
 class ClassDef:
     def __init__(self, tclass: TClass, supers: list, tvar: TypeVariable, methods: list):
@@ -197,6 +200,12 @@ class ClassDef:
 
     def __repr__(self):
         return f'ClassDef({repr(self.tclass)}, {repr(self.supers)}, {repr(self.tvar)}, {repr(self.methods)})'
+
+    def get_method(self, name):
+        for method in methods:
+            if method.name == name:
+                return method
+        raise RuntimeError(f'could not find method by name: {name}')
 
 
 class InstanceDef:
