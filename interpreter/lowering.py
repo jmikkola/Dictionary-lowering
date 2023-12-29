@@ -44,3 +44,21 @@ class Dictionary:
 
         lines.append('}')
         return '\n'.join(lines)
+
+
+class Context:
+    ''' Internal data used during the lowering process '''
+
+    # local_vars: list[str]
+    # dict_preds: dict[str, Predicate] (str is the name of the dictionary)
+    # scope: dict[str, Declaration] (top-level function declarations)
+    # methods: dict[str, tuple[TClass, Qualified]] (methods that appear in classes)
+    # instances: list[InstanceDef]
+    # classes: list[ClassDef]
+    def __init__(self, local_vars, dict_preds, scope, methods, instances, classes):
+        self.local_vars = local_vars
+        self.dict_preds = dict_preds
+        self.scope = scope
+        self.methods = methods
+        self.instances = instances
+        self.classes = classes
