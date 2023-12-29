@@ -169,7 +169,7 @@ class MethodDecl:
         self.method_name = method_name
         self.qual_type = qual_type
 
-    def __str__(self)
+    def __str__(self):
         return f'{self.method_name} :: {self.qual_type}'
 
     def __repr__(self):
