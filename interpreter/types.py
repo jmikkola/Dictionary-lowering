@@ -163,8 +163,53 @@ class Substitution:
     def __init__(self, substitutions: dict):
         self.substitutions = substitutions
 
+    @classmethod
+    def singleton(cls, type_variable: TypeVariable, replacement: Type):
+        return Substitution({type_variable: replacement})
+
+    @classmethod
+    def empty(cls):
+        return Substitution({})
+
+    # other: Substitution
+    def merge(self, other):
+        # Check if the two substitutions agree before merging
+        for (tvar, t) in self.substitutions.items():
+            t2 = other.get(tvar)
+            if t2 is not None and t2 != t:
+                raise TypeError('substitutions do not agree')
+
+        merged = {**self.substitutions, **other.substitutions}
+        return Substitution(merged)
+
     def get(self, type_variable: TypeVariable):
         return self.substitutions.get(type_variable)
 
     def apply_to_list(self, items: list):
         return [item.apply(self) for item in items]
+
+
+class TypeError(RuntimeError):
+    pass
+
+
+def match(l: Type, r: Type) -> Substitution:
+    '''
+    Returns a substitution that, if applied to `l`, will result in `r`.
+
+    Raises a TypeError if matching the types fails
+    '''
+
+    if isinstance(l, TApplication) and isinstance(r, TApplication):
+        if len(l.args) == len(r.args):
+            sub = match(l.t, r.t)
+            for (l_arg, r_arg) in zip(l.args, r.args):
+                sub = sub.merge(match(larg, r_arg))
+            return sub
+    elif isinstance(l, TVariable):
+        return Substitution.singleton(l.type_variable, r)
+    elif isinstance(l, TConstructor) and isinstance(r, TConstructor):
+        if l == r:
+            return Substitution.empty()
+
+    raise TypeError(f'types do not match: {l} and {r}')

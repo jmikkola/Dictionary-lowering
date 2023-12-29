@@ -10,4 +10,6 @@ tree-walking interpreter on the backend.
 Just a skeleton project so far
 
 - I'm porting stuff from dicionarypassing.hs
-    - The next thing to port is the functions that work on types (e.g. substitutions)
+    - The next thing to port is the lowering logic
+- Then, add a simple front-end (ml-ish syntax?)
+- And a treewalking interpreter
