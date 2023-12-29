@@ -38,6 +38,12 @@ class TVariable(Type):
     def from_varname(cls, name):
         return TVariable(TypeVariable(name))
 
+    def apply(self, substitution):
+        replacement = substitution.get(type_variable)
+        if replacement is not None:
+            return replacement
+        return self
+
 
 class TConstructor(Type):
     def __init__(self, type_name: str):
@@ -54,6 +60,9 @@ class TConstructor(Type):
 
     def __eq__(self, o):
         return isinstance(o, TConstructor) and o.type_name == self.type_name
+
+    def apply(self, substitution):
+        return self
 
 
 class TApplication(Type):
@@ -79,6 +88,12 @@ class TApplication(Type):
         for a in args:
             ftvs |= a.free_type_vars()
         return ftvs
+
+    def apply(self, substitution):
+        return Substitution(
+            self.t.apply(substitution),
+            substitution.apply_to_list(self.args)
+        )
 
 
 class TClass:
@@ -109,6 +124,12 @@ class Predicate:
     def __eq__(self, o):
         return isinstance(o, Predicate) and o.tclass == self.tclass and o.t == self.t
 
+    def apply(self, substitution):
+        return Predicate(
+            self.tclass,
+            self.t.apply(substitution)
+        )
+
 
 class Qualified:
     # This version of ubuntu is too old to get python 3.9+, but the types should be
@@ -129,3 +150,21 @@ class Qualified:
 
     def __eq__(self, o):
         return isinstance(o, Qualified) and o.predicates == self.predicates and o.t == self.t
+
+    def apply(self, substitution):
+        return Qualified(
+            substitution.apply_to_list(self.predicates),
+            self.t.apply(substitution)
+        )
+
+
+class Substitution:
+    # dict[TyVar, Type]
+    def __init__(self, substitutions: dict):
+        self.substitutions = substitutions
+
+    def get(self, type_variable: TypeVariable):
+        return self.substitutions.get(type_variable)
+
+    def apply_to_list(self, items: list):
+        return [item.apply(self) for item in items]
