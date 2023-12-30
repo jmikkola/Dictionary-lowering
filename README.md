@@ -7,11 +7,10 @@ tree-walking interpreter on the backend.
 
 ## Status
 
-Just a skeleton project so far
+The basic lowering logic has been ported from the Haskell project.
 
-- I'm porting stuff from dicionarypassing.hs
-    - The next thing to port is the lowering logic
-- Then, add a simple front-end (ml-ish syntax?)
+- The next step is to add a simple front-end (ml-ish syntax?)
+- Use that to build unit tests
 - The next milestone is to have it read in (typed) code with classes and instances and output
   lowered code (print it out), making it possible to visually inspect that this works and is sane.
 
