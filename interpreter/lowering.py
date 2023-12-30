@@ -6,7 +6,7 @@ from interpreter.syntax import (
     Expression,
     ELambda, ELiteral, EParen, ECall, EConstruct,
     EPartial, ELet, ELambda, Binding, EVariable,
-    MethodDecl,
+    MethodDecl, EAccess,
 )
 
 from interpreter.types import (
@@ -307,6 +307,13 @@ class LoweringInput:
         raise NotImplementedError(f'_lower_expression should handle {repr(expression)}')
 
     def _rewrite_static_reference(self, context, declaration: DFunction, expression: EVariable):
+        ''' Rewrite static references to other functions.
+
+        If the function `foo` takes has a predicate `(Show a)`, this would
+        convert the variable `foo` into the partial application
+        `(foo make__Show())`
+        '''
+
         qualified = declaration.t
         try:
             # Find out how the function's type was instantiated here
@@ -332,12 +339,23 @@ class LoweringInput:
 
         return EPartial(expression.get_type(), variable, dictionary_args)
 
-    def _rewrite_class_call(self, context, method: MethodDecl, expression: EVariable):
-        instance_type = context.find_instance_type(method, expression.get_type())
-        # TODO: what goes in the predicate
-        dictionary = context.lookup_dictionary(Predicate())
-        # TODO: types
-        get_dict_field = ECall(EVariable(expression.name), dictionary)
+    def _rewrite_class_call(self, context, method, expression: EVariable):
+        ''' Rewrites a reference to a method from a class.
+
+        method is a Method not a MethodDecl.
+
+        If the method `show` (from the class `Show`) is referenced, this will
+        convert that to extracting the field `show` from the `Show` dict,
+        complete with logic to find or create that dictionary.
+        '''
+
+        t = expression.get_type()
+        instance_type = context.find_instance_type(method, t)
+
+        predicate = Predicate(method.tclass, instance_type)
+        dictionary = context.lookup_dictionary_all(predicate)
+
+        get_dict_field = EAccess(expression.get_type(), dictionary, expression.name)
         return EParen(get_dict_field)
 
 
@@ -454,9 +472,45 @@ class Context:
         ''' returns Declaration or None '''
         return self.scope.get(var_name)
 
+    def find_class_method(self, name):
+        ''' returns Method or None '''
+        return self.methods.get(name)
+
+    def find_instance_type(self, method, called_type):
+        ''' find the type of the instance used
+
+        ... based on the class methd and the type it is used at
+        when it is called.
+
+        For example, if `show` is called in a context where its type
+        is `Int -> String`, the instance type would be `Int`.
+        '''
+
+        tclass = method.tclass
+        qualified = method.qualified
+
+        class_def = self.get_class_def(tclass)
+        class_type_var = class_def.tvar
+
+        substitution = match(qualified.t, called_type)
+        assert(class_type_var in substitution)
+        return substitution[class_type_var]
+
+    def lookup_dictionary_all(self, predicate):
+        ''' Look up the dictionary using all predicates in scope.
+
+        In the body of a normal function, this will be the predicates
+        on that function.
+        '''
+        predicates_in_scope = [
+            (predicate, name)
+            for (name, predicate) in self.dict_preds.items()
+        ]
+        return self.lookup_dictionary(predicates_in_scope, predicate)
+
     def lookup_dictionary(self, predicates_in_scope, predicate):
-        pass
         # TODO: lots of logic here
+        pass
 
 
 def _predicate_to_arg_name(predicate: Predicate) -> str:

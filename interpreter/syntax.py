@@ -152,6 +152,24 @@ class EPartial(Expression):
         return self.t
 
 
+class EAccess(Expression):
+    ''' Access a field of a struct '''
+
+    def __init__(self, t: Type, lhs: Expression, field: str):
+        self.t = t
+        self.lhs = lhs
+        self.field = field
+
+    def __str__(self):
+        return f'(. {self.lhs} {self.field})'
+
+    def __repr__(self):
+        return f'EAccess({repr(self.t)}, {repr(self.lhs)}, {repr(self.field)})'
+
+    def get_type(self) -> Type:
+        return self.t
+
+
 class EParen(Expression):
     def __init__(self, inner: Expression):
         self.inner = inner
