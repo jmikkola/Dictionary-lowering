@@ -3,10 +3,17 @@
 
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
-    ELambda, TypedExpression,
+    Expression,
+    ELambda, TypedExpression, ELiteral, EParen, ECall,
+    EPartial, ELet, ELambda, Binding, EVariable,
+    MethodDecl,
 )
 
-from interpreter.types import Qualified, Type, Substitution
+from interpreter.types import (
+    Qualified, Type, Substitution, TClass, TypeError,
+    Predicate,
+    match,
+)
 
 
 class LoweringInput:
@@ -71,12 +78,121 @@ class LoweringInput:
         l = ELambda(arg_names, body)
         return TypedExpression(l, method_type)
 
-    def _lower_expression(self, context, expression):
+    def _lower_expression(self, context, expression: Expression) -> Expression:
+        '''Lowers expressions.
+
+        Converts the expression to one that doesn't rely
+        on classes, and instead directly passes (and
+        uses) dictionaries to get the instance methods
+        needed.
+        '''
+
+        # Trivial cases:
+
+        if isinstance(expression, ELiteral):
+            # Literal values don't need lowering
+            return expression
+
+        # Recursive cases:
+
         if isinstance(expression, TypedExpression):
             expr = self._lower_expression(context, expression.expr)
             return TypedExpression(expr, expression.t)
 
-        # TODO: other expression types
+        if isinstance(expression, EParen):
+            new_inner = self._lower_expression(context, expression.inner)
+            return EParen(new_inner)
+
+        if isinstance(expression, ECall):
+            # If f_expr is a function that needs dictionaries passed, this
+            # will partially apply those arguments to it.
+            f_expr = self._lower_expression(context, expression.f_expr)
+            # Likewise for the arguments
+            arg_exprs = [
+                self._lower_expression(context, arg_expr)
+                for arg_expr in expression.arg_exprs
+            ]
+
+            # Remove unneeded partial application
+            if isinstance(f_expr, EPartial):
+                dictionary_args = f_expr.arg_exprs
+                arg_exprs = dictionary_args + arg_exprs
+                f_expr = f_expr.f_expr
+
+            return ECall(f_expr, arg_exprs)
+
+        if isinstance(expression, ELet):
+            bindings = [
+                Binding(b.name, self._lower_expression(context, b.value))
+                for b in expression.bindings
+            ]
+            binding_names = [b.name for b in bindings]
+
+            # Add the names defined in the let block as local variables
+            # (potentially shadowing other definitions) before handling
+            # dictionary passing in the body.
+            lambda_context = context.for_method(binding_names, [])
+            inner = self._lower_expression(lambda_context, expression.inner)
+
+            return ELet(bindings, inner)
+
+        if isinstance(expression, ELambda):
+            lambda_context = context.for_method(expression.arg_names, [])
+            body = self._lower_expression(lambda_context, expression.body)
+            return ELambda(expression.arg_names, body)
+
+        # Where dictionary passing is actually added:
+
+        if isinstance(expression, EVariable):
+            name = expression.name
+            # The variable might reference something with class constraints.
+            if context.is_local(name):
+                # If it's a local variable, leave it unchanged.
+                # TODO: This is incorrect if a local let binding is allowed to
+                # have class constrains (which they are in Haskell). Fixing
+                # this will require adding a Qualified to let bindings.
+                return expression
+
+            declaration = context.get_from_scope(name)
+            if declaration is not None:
+                # Handle references to other functions
+                # (these need dictionaries to be passed)
+                return self._rewrite_static_reference(context, declaration, expression)
+
+            method = context.find_class_method(name)
+            if method is not None:
+                # Handle references to methods on a class
+                # (these come from dictionaries)
+                return self._rewrite_class_call(context, method, expression)
+
+            raise RuntimeError(f'could not find definition of name {name}')
+
+        raise NotImplementedError(f'_lower_expression should handle {repr(expression)}')
+
+    def _rewrite_static_reference(self, context, declaration: DFunction, expression: EVariable):
+        qualified = declaration.t
+        # TODO: expression doesn't _have_ a `.t` right now
+        try:
+            substitution = match(qualified.t, expression.t)
+        except TypeError as e:
+            raise TypeError(f'type error in using {expression}: {e}')
+
+        predicates = substitution.apply_to_list(qualified.predicates)
+        dictionary_args = []
+
+        for pred in predicates:
+            dictionary = context.lookup_dictionary(pred)
+            dictionary_args.append(dictionary)
+
+        return EPartial(expression, dictionary_args)
+
+    def _rewrite_class_call(self, context, method: MethodDecl, expression: EVariable):
+        # TODO: expression don't _have_ a `.t` right now
+        instance_type = context.find_instance_type(method, expression.t)
+        # TODO: what goes in the predicate
+        dictionary = context.lookup_dictionary(Predicate())
+        get_dict_field = ECall(EVariable(expression.name), dictionary)
+        return EParen(get_dict_field)
 
 
 class LoweringOutput:
@@ -179,10 +295,21 @@ class Context:
             classes=self.classes,
         )
 
-    def get_class_def(self, tclass):
+    def get_class_def(self, tclass: TClass):
         for class_def in self.classes:
             if class_def.tclass == tclass:
                 return class_def
+
+    def is_local(self, var_name: str):
+        return var_name in self.locals
+
+    def get_from_scope(self, var_name: str):
+        ''' returns Declaration or None '''
+        return self.scope.get(var_name)
+
+    def lookup_dictionary(self, predicate):
+        pass
+        # TODO: lots of logic here
 
 
 def _predicate_to_arg_name(predicate):

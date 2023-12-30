@@ -84,6 +84,24 @@ class ECall(Expression):
         return f'ECall({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
 
+class EPartial(Expression):
+    ''' Like a function call, except for partial application.
+    Not exposed as part of the syntax currently. '''
+
+    def __init__(self, f_expr: Expression, arg_exprs: list):
+        self.f_expr = f_expr
+        self.arg_exprs = arg_exprs
+
+    def __str__(self):
+        joined_args = ' '.join(str(a) for a in self.arg_exprs)
+        if joined_args:
+            joined_args = ' ' + joined_args
+        return f'(*apply* {self.f_expr}{joined_args})'
+
+    def __repr__(self):
+        return f'EPartial({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+
+
 class EParen(Expression):
     def __init__(self, inner: Expression):
         self.inner = inner
@@ -150,7 +168,7 @@ class Declaration:
 
 
 class DFunction(Declaration):
-    def __init__(self, name: str, t: Type, arg_names: list, body: Expression):
+    def __init__(self, name: str, t, arg_names: list, body: Expression):
         self.name = name
         self.t = t
         self.arg_names = arg_names
