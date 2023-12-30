@@ -12,7 +12,7 @@ from interpreter.syntax import (
 from interpreter.types import (
     Qualified, Type, Substitution, TClass, TypeError,
     Predicate, TConstructor, TApplication,
-    match,
+    match, make_function_type,
 )
 
 
@@ -130,10 +130,7 @@ class LoweringInput:
 
         # Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>`
         new_argument_types = [
-            TApplication(
-                TConstructor(_class_to_dictionary_name(predicate.tclass)),
-                predicate.t
-            )
+            self._pred_type_to_arg_type(predicate)
             for predicate in predicates
         ]
 
@@ -142,26 +139,73 @@ class LoweringInput:
             new_argument_types + function_type.args
         )
 
+    def _pred_type_to_arg_type(self, predicate):
+        ''' Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>` '''
+        return TApplication(
+            TConstructor(_class_to_dictionary_name(predicate.tclass)),
+            predicate.t
+        )
 
     def _make_dictionary_fn(self, context, instance):
         ''' Creates a function for constructing a instance's dictionary '''
 
-        # Arg names for the function that produces the dictionary
+        inst_t = instance.get_type()
+        tclass = instance.get_class()
+        predicates = instance.get_predicates()
+
+        class_def = context.get_class_def(tclass)
+
+        # Construct the type of the function that returns the dictionary
+        arg_types = [
+            _pred_type_to_arg_type(predicate)
+            for predicate in predicates
+        ]
+        dictionary_type_name = _class_to_dictionary_name(tclass)
+        struct_type = TApplication(
+            TConstructor(dictionary_type_name),
+            instance_type
+        )
+        function_type = make_function_type(arg_types, struct_type)
+
+        # Determine the names
+        function_name = _instance_constructor_name(instance)
         arg_names = [
-            _predicate_to_arg_name(p)
-            for p in instance.get_predicates()
+            _predicate_to_arg_name(predicate)
+            for predicate in predicates
         ]
 
-        class_def = context.get_class_def(instance.get_class())
-
-        inst_t = instance.get_type()
-        method_context = context.for_method(arg_names, instance.get_predicates())
+        # Create the body of the function which instantiates the structure
+        lambda_context = context.for_method(arg_names, predicates)
         lambdas = [
-            self._declaration_to_lambda(method_context, class_def, inst_t, method)
+            self._declaration_to_lambda(lambda_context, class_def, inst_t, method)
             for method in instance.method_impls
         ]
 
+        super_dictionaries = [
+            self._to_super_dictionary(lambda_context, inst_t, super_class)
+            for super_class in class_def.supers
+        ]
+
+        struct_expr = self._make_struct_expr(
+            struct_type,
+            dictionary_type_name,
+            super_dictionaries + lambdas
+        )
+
+        return DFunction(
+            name=function_name,
+            t=function_type,
+            arg_names=arg_names,
+            body=struct_expr,
+        )
+
+    def _to_super_dictionary(self, context, t, tclass):
         # TODO
+        pass
+
+    def _make_struct_expr(self, struct_type, type_name, fields):
+        # TODO
+        pass
 
     def _declaration_to_lambda(self, context, class_def, inst_type, method_impl):
         assert(isinstance(method_impl, DFunction))
@@ -415,9 +459,14 @@ class Context:
         # TODO: lots of logic here
 
 
-def _predicate_to_arg_name(predicate):
+def _predicate_to_arg_name(predicate: Predicate) -> str:
     class_name = predicate.tclass.name
     return f'dict_{class_name}_{predicate.t}'
 
-def _class_to_dictionary_name(tclass):
+def _class_to_dictionary_name(tclass: TClass) -> str:
     return tclass.name + "Methods"
+
+def _instance_constructor_name(instance: InstanceDef) -> str:
+    dict_name = _class_to_dictionary_name(instance.get_class())
+    type_name = str(instance.get_type())
+    return f'make__{dict_name}__{type_name}'

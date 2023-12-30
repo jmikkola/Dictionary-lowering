@@ -213,3 +213,10 @@ def match(l: Type, r: Type) -> Substitution:
             return Substitution.empty()
 
     raise TypeError(f'types do not match: {l} and {r}')
+
+
+def make_function_type(arg_types: list, return_type: Type) -> Type:
+    return TApplication(
+        TConstructor('Fn'),
+        arg_types + [return_type]
+    )
