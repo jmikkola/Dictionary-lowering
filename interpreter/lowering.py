@@ -373,7 +373,7 @@ class Context:
         }
 
         return Context(
-            locals=locals,
+            local_vars=locals,
             dict_preds={},
             scope=scope,
             methods=methods,
@@ -382,7 +382,7 @@ class Context:
         )
 
     def for_method(self, arg_names, predicates):
-        new_locals = arg_names + self.locals
+        new_locals = arg_names + self.local_vars
 
         new_dict_preds = {**self.dict_preds}
         for pred in predicates:
@@ -390,7 +390,7 @@ class Context:
             new_dict_preds[name] = pred
 
         return Context(
-            locals=new_locals,
+            local_vars=new_locals,
             dict_preds=new_dict_preds,
             scope=self.scope,
             methods=self.methods,
@@ -404,7 +404,7 @@ class Context:
                 return class_def
 
     def is_local(self, var_name: str):
-        return var_name in self.locals
+        return var_name in self.local_vars
 
     def get_from_scope(self, var_name: str):
         ''' returns Declaration or None '''

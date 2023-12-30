@@ -204,7 +204,7 @@ def match(l: Type, r: Type) -> Substitution:
         if len(l.args) == len(r.args):
             sub = match(l.t, r.t)
             for (l_arg, r_arg) in zip(l.args, r.args):
-                sub = sub.merge(match(larg, r_arg))
+                sub = sub.merge(match(l_arg, r_arg))
             return sub
     elif isinstance(l, TVariable):
         return Substitution.singleton(l.type_variable, r)

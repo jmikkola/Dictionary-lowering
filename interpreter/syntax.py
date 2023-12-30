@@ -116,7 +116,7 @@ class EParen(Expression):
 class Binding:
     def __init__(self, name: str, value: Expression):
         self.name = name
-        self.value = expression
+        self.value = value
 
     def __str__(self):
         return f'{self.name} = {self.expression}'
