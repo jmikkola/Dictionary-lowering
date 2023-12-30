@@ -1,9 +1,10 @@
 # module syntax
 
-from interpreter.types import Type, TClass, TypeVariable, Qualified
+from interpreter.types import Type, TClass, TypeVariable, Qualified, TConstructor
 
 class Literal:
-    pass
+    def get_type(self) -> Type:
+        raise NotImplementedError
 
 
 class LString(Literal):
@@ -20,6 +21,9 @@ class LString(Literal):
     def __repr__(self):
         return f'LString({repr(self.value)})'
 
+    def get_type(self) -> Type:
+        return TConstructor('String')
+
 
 class LInt(Literal):
     def __init__(self, value: int):
@@ -30,6 +34,9 @@ class LInt(Literal):
 
     def __repr__(self):
         return f'LInt({repr(self.value)})'
+
+    def get_type(self) -> Type:
+        return TConstructor('Int')
 
 
 class LFloat(Literal):
@@ -42,9 +49,13 @@ class LFloat(Literal):
     def __repr__(self):
         return f'LFloat({repr(self.value)})'
 
+    def get_type(self) -> Type:
+        return TConstructor('Float')
+
 
 class Expression:
-    pass
+    def get_type(self) -> Type:
+        raise NotImplementedError
 
 
 class ELiteral(Expression):
@@ -57,9 +68,13 @@ class ELiteral(Expression):
     def __repr__(self):
         return f'ELiteral({repr(self.literal)})'
 
+    def get_type(self) -> Type:
+        return self.literal.get_type()
+
 
 class EVariable(Expression):
-    def __init__(self, name: str):
+    def __init__(self, t: Type, name: str):
+        self.t = t
         self.name = name
 
     def __str__(self):
@@ -68,9 +83,13 @@ class EVariable(Expression):
     def __repr__(self):
         return f'EVariable({repr(self.name)})'
 
+    def get_type(self) -> Type:
+        return self.t
+
 
 class ECall(Expression):
-    def __init__(self, f_expr: Expression, arg_exprs: list):
+    def __init__(self, t: Type, f_expr: Expression, arg_exprs: list):
+        self.t = t
         self.f_expr = f_expr
         self.arg_exprs = arg_exprs
 
@@ -83,12 +102,16 @@ class ECall(Expression):
     def __repr__(self):
         return f'ECall({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
+    def get_type(self) -> Type:
+        return self.t
+
 
 class EPartial(Expression):
     ''' Like a function call, except for partial application.
     Not exposed as part of the syntax currently. '''
 
-    def __init__(self, f_expr: Expression, arg_exprs: list):
+    def __init__(self, t: Type, f_expr: Expression, arg_exprs: list):
+        self.t = t
         self.f_expr = f_expr
         self.arg_exprs = arg_exprs
 
@@ -101,6 +124,9 @@ class EPartial(Expression):
     def __repr__(self):
         return f'EPartial({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
+    def get_type(self) -> Type:
+        return self.t
+
 
 class EParen(Expression):
     def __init__(self, inner: Expression):
@@ -111,6 +137,9 @@ class EParen(Expression):
 
     def __repr__(self):
         return f'EParen({repr(self.inner)})'
+
+    def get_type(self) -> Type:
+        return self.inner.get_type()
 
 
 class Binding:
@@ -126,7 +155,8 @@ class Binding:
 
 
 class ELet(Expression):
-    def __init__(self, bindings: list, inner: Expression):
+    def __init__(self, t: Type, bindings: list, inner: Expression):
+        self.t = t
         self.bindings = bindings
         self.inner = inner
 
@@ -137,9 +167,13 @@ class ELet(Expression):
     def __repr__(self):
         return f'ELet({repr(self.bindings)}, {repr(self.inner)})'
 
+    def get_type(self) -> Type:
+        return self.t
+
 
 class ELambda(Expression):
-    def __init__(self, arg_names: list, body: Expression):
+    def __init__(self, t: Type, arg_names: list, body: Expression):
+        self.t = t
         self.arg_names = arg_names
         self.body = body
 
@@ -150,17 +184,8 @@ class ELambda(Expression):
     def __repr__(self):
         return f'ELambda({repr(self.arg_names)}, {repr(self.body)})'
 
-
-class TypedExpression(Expression):
-    def __init__(self, expr: Expression, t: Type):
-        self.expr = expr
-        self.t = t
-
-    def __str__(self):
-        return f'({self.expr} :: {self.t})'
-
-    def __repr__(self):
-        return f'TypedExpression({repr(self.expr)}, {repr(self.t)})'
+    def get_type(self) -> Type:
+        return self.t
 
 
 class Declaration:

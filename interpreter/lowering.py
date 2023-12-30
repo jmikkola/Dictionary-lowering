@@ -4,7 +4,7 @@
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
     Expression,
-    ELambda, TypedExpression, ELiteral, EParen, ECall,
+    ELambda, ELiteral, EParen, ECall,
     EPartial, ELet, ELambda, Binding, EVariable,
     MethodDecl,
 )
@@ -221,8 +221,7 @@ class LoweringInput:
 
         body = self._lower_expression(lambda_context, method_impl.body)
 
-        l = ELambda(arg_names, body)
-        return TypedExpression(l, method_type)
+        return ELambda(t=method_type, arg_names=arg_names, body=body)
 
     def _lower_expression(self, context, expression: Expression) -> Expression:
         '''Lowers expressions.
@@ -240,10 +239,6 @@ class LoweringInput:
             return expression
 
         # Recursive cases:
-
-        if isinstance(expression, TypedExpression):
-            expr = self._lower_expression(context, expression.expr)
-            return TypedExpression(expr, expression.t)
 
         if isinstance(expression, EParen):
             new_inner = self._lower_expression(context, expression.inner)
@@ -265,7 +260,7 @@ class LoweringInput:
                 arg_exprs = dictionary_args + arg_exprs
                 f_expr = f_expr.f_expr
 
-            return ECall(f_expr, arg_exprs)
+            return ECall(expression.get_type(), f_expr, arg_exprs)
 
         if isinstance(expression, ELet):
             bindings = [
@@ -280,12 +275,12 @@ class LoweringInput:
             lambda_context = context.for_method(binding_names, [])
             inner = self._lower_expression(lambda_context, expression.inner)
 
-            return ELet(bindings, inner)
+            return ELet(expression.get_type(), bindings, inner)
 
         if isinstance(expression, ELambda):
             lambda_context = context.for_method(expression.arg_names, [])
             body = self._lower_expression(lambda_context, expression.body)
-            return ELambda(expression.arg_names, body)
+            return ELambda(expression.get_type(), expression.arg_names, body)
 
         # Where dictionary passing is actually added:
 
@@ -317,9 +312,8 @@ class LoweringInput:
 
     def _rewrite_static_reference(self, context, declaration: DFunction, expression: EVariable):
         qualified = declaration.t
-        # TODO: expression doesn't _have_ a `.t` right now
         try:
-            substitution = match(qualified.t, expression.t)
+            substitution = match(qualified.t, expression.get_type())
         except TypeError as e:
             raise TypeError(f'type error in using {expression}: {e}')
 
@@ -330,13 +324,14 @@ class LoweringInput:
             dictionary = context.lookup_dictionary(pred)
             dictionary_args.append(dictionary)
 
-        return EPartial(expression, dictionary_args)
+        t = None # TODO
+        return EPartial(t, expression, dictionary_args)
 
     def _rewrite_class_call(self, context, method: MethodDecl, expression: EVariable):
-        # TODO: expression don't _have_ a `.t` right now
-        instance_type = context.find_instance_type(method, expression.t)
+        instance_type = context.find_instance_type(method, expression.get_type())
         # TODO: what goes in the predicate
         dictionary = context.lookup_dictionary(Predicate())
+        # TODO: types
         get_dict_field = ECall(EVariable(expression.name), dictionary)
         return EParen(get_dict_field)
 
