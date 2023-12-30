@@ -11,7 +11,7 @@ from interpreter.syntax import (
 
 from interpreter.types import (
     Qualified, Type, Substitution, TClass, TypeError,
-    Predicate,
+    Predicate, TConstructor, TApplication,
     match,
 )
 
@@ -33,7 +33,7 @@ class LoweringInput:
         ]
 
         lowered_declarations = [
-            self._lower_method(context, declaration)
+            self._lower_function(context, declaration)
             for declaration in self.declarations
         ]
 
@@ -48,6 +48,8 @@ class LoweringInput:
         )
 
     def _make_dictionary(self, class_def):
+        ''' Creates the dictionary structure for a class '''
+
         dictionary_name  = _class_to_dictionary_name(class_def.tclass)
 
         # Create fields for referencing the dictionaries of superclasses.
@@ -88,10 +90,62 @@ class LoweringInput:
         t = TApplication(TConstructor(dictionary_name), TVariable(tv))
         return (name, t)
 
-    def _lower_method(self, context, declaration):
-        pass # TODO
+    def _lower_function(self, context, declaration):
+        ''' Converts the function's predicates to dictionary arguments '''
+
+        qualified = declaration.t
+
+        decl_type = self._predicates_to_arg_types(qualified)
+
+        new_arg_names = [_predicate_to_arg_name(p) for p in qualified.predicates]
+
+        method_context = context.for_method(
+            declaration.arg_names,
+            qualified.predicates
+        )
+        body = self._lower_expression(method_context, declaration.body)
+
+        return DFunction(
+            declaration.name,
+            decl_type,
+            new_arg_names + declaration.arg_names,
+            body
+        )
+
+    def _predicates_to_arg_types(self, qualified):
+        '''Convert predicates to argument types.
+
+        Converts a function type with predicates to a
+        function type without predicates (but with extra
+        arguments)
+        '''
+
+        predicates = qualified.predicates
+        function_type = qualified.t
+
+        # This code assumes that the function's type is Fn applied to some type
+        # arguments
+        assert(isinstance(function_type, TApplication))
+        assert(function_type.t == TConstructor('Fn'))
+
+        # Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>`
+        new_argument_types = [
+            TApplication(
+                TConstructor(_class_to_dictionary_name(predicate.tclass)),
+                predicate.t
+            )
+            for predicate in predicates
+        ]
+
+        return TApplication(
+            function_type.t,
+            new_argument_types + function_type.args
+        )
+
 
     def _make_dictionary_fn(self, context, instance):
+        ''' Creates a function for constructing a instance's dictionary '''
+
         # Arg names for the function that produces the dictionary
         arg_names = [
             _predicate_to_arg_name(p)
