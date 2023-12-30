@@ -130,20 +130,13 @@ class LoweringInput:
 
         # Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>`
         new_argument_types = [
-            self._pred_type_to_arg_type(predicate)
+            _pred_type_to_arg_type(predicate)
             for predicate in predicates
         ]
 
         return TApplication(
             function_type.t,
             new_argument_types + function_type.args
-        )
-
-    def _pred_type_to_arg_type(self, predicate):
-        ''' Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>` '''
-        return TApplication(
-            TConstructor(_class_to_dictionary_name(predicate.tclass)),
-            predicate.t
         )
 
     def _make_dictionary_fn(self, context, instance):
@@ -509,18 +502,85 @@ class Context:
         return self.lookup_dictionary(predicates_in_scope, predicate)
 
     def lookup_dictionary(self, predicates_in_scope, predicate):
-        # TODO: lots of logic here
-        pass
+        t = predicate.t
+
+        if isinstance(t, TVariable):
+            # If the type is still a variable (and typechecking hasn't replaced
+            # it with a concrete type), that means that the entire function is
+            # still abstract with respect to that type. It also means that the
+            # dictionary must come from an argument to that function (either
+            # directly, or a superclass of one of the classes passed in).
+
+            # TODO: look up the dictionary when the predicate's type is a variable
+            pass
+
+        # If it's not a type variable, find an instance for that concrete type
+        (substitution, instance) = self._find_matching_instance(predicate)
+        instance_fn = self._instance_to_dict_fn(instance)
+
+        # That instance may depend on other classes (e.g. `Show a => Show [a]`).
+        # Recursively look up those dictionaries.
+        instance_predicates = substitution.apply_to_list(instance.get_predicates())
+        instance_predicate_args = [
+            self.lookup_dictionary(predicates_in_scope, p)
+            for p in instance_predicates
+        ]
+
+        return ECall(return_type, instance_fn, instance_predicate_args)
+
+    def _find_matching_instance(self, predicate):
+        ''' Find an instance that matches the predicate
+
+        Look for instances for (a) the same class as the predicate
+        and (b) the type of the instance can match the type in the
+        predicate.
+        '''
+        for instance in self.instances:
+            if instance.get_class() != predicate.tclass:
+                continue
+
+            substitution = match(instance.get_type(), predicate.t)
+            if substitution is not None:
+                return (substitution, instance)
+
+        raise RuntimeError(f'could not find matching instance for {predicate}')
+
+    def _instance_to_dict_fn(self, instance):
+        '''
+        Create the var that references the function that creates the dictionary
+        for this particular instance.
+        '''
+        name = _instance_constructor_name(instance)
+
+        tclass = instance.get_class()
+        dictionary_type = TConstructor(_class_to_dictionary_name(tclass))
+        arg_types = [
+            _pred_type_to_arg_type(p)
+            for p in instance.get_predicates()
+        ]
+        t = make_function_type(arg_types, dictionary_type)
+
+        return EVariable(t, name)
 
 
 def _predicate_to_arg_name(predicate: Predicate) -> str:
     class_name = predicate.tclass.name
     return f'dict_{class_name}_{predicate.t}'
 
+
 def _class_to_dictionary_name(tclass: TClass) -> str:
     return tclass.name + "Methods"
+
 
 def _instance_constructor_name(instance: InstanceDef) -> str:
     dict_name = _class_to_dictionary_name(instance.get_class())
     type_name = str(instance.get_type())
     return f'make__{dict_name}__{type_name}'
+
+
+def _pred_type_to_arg_type(self, predicate):
+    ''' Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>` '''
+    return TApplication(
+        TConstructor(_class_to_dictionary_name(predicate.tclass)),
+        predicate.t
+    )
