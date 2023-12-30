@@ -88,6 +88,8 @@ class EVariable(Expression):
 
 
 class ECall(Expression):
+    ''' for calling a function '''
+
     def __init__(self, t: Type, f_expr: Expression, arg_exprs: list):
         self.t = t
         self.f_expr = f_expr
@@ -101,6 +103,28 @@ class ECall(Expression):
 
     def __repr__(self):
         return f'ECall({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+
+    def get_type(self) -> Type:
+        return self.t
+
+
+class EConstruct(Expression):
+    ''' for constructing an instance of a struct '''
+
+    def __init__(self, t: Type, struct_name: str, arg_exprs: list):
+        self.t = t
+        assert(struct_name[0].isupper())
+        self.struct_name = struct_name
+        self.arg_exprs = arg_exprs
+
+    def __str__(self):
+        joined_args = ' '.join(str(a) for a in self.arg_exprs)
+        if joined_args:
+            joined_args = ' ' + joined_args
+        return f'({self.struct_name}{joined_args})'
+
+    def __repr__(self):
+        return f'EConstruct({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
     def get_type(self) -> Type:
         return self.t

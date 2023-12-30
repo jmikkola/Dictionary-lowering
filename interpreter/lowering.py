@@ -4,7 +4,7 @@
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
     Expression,
-    ELambda, ELiteral, EParen, ECall,
+    ELambda, ELiteral, EParen, ECall, EConstruct,
     EPartial, ELet, ELambda, Binding, EVariable,
     MethodDecl,
 )
@@ -186,7 +186,7 @@ class LoweringInput:
             for super_class in class_def.supers
         ]
 
-        struct_expr = self._make_struct_expr(
+        struct_expr = EConstruct(
             struct_type,
             dictionary_type_name,
             super_dictionaries + lambdas
@@ -200,12 +200,8 @@ class LoweringInput:
         )
 
     def _to_super_dictionary(self, context, t, tclass):
-        # TODO
-        pass
-
-    def _make_struct_expr(self, struct_type, type_name, fields):
-        # TODO
-        pass
+        predicate = Predicate(tclass, t)
+        return context.lookup_dictionary([], predicate)
 
     def _declaration_to_lambda(self, context, class_def, inst_type, method_impl):
         assert(isinstance(method_impl, DFunction))
@@ -449,7 +445,7 @@ class Context:
         ''' returns Declaration or None '''
         return self.scope.get(var_name)
 
-    def lookup_dictionary(self, predicate):
+    def lookup_dictionary(self, predicates_in_scope, predicate):
         pass
         # TODO: lots of logic here
 
