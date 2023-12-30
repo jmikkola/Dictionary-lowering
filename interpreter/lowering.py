@@ -78,7 +78,7 @@ class LoweringInput:
     def _to_super_field(self, tclass, tv):
         # Prefix the field's name with 'super' to note the fact that this
         # references another dictionary
-        name = "super" + tclass.name
+        name = _to_super_field_name(tclass)
         # The type of the field is the superclass's dictionary type.
         #
         # It uses the same type variable as the current dictionary because the
@@ -510,11 +510,11 @@ class Context:
             # still abstract with respect to that type. It also means that the
             # dictionary must come from an argument to that function (either
             # directly, or a superclass of one of the classes passed in).
+            return self._find_dictionary_for_predicate(predicates_in_scope, predicate)
 
-            # TODO: look up the dictionary when the predicate's type is a variable
-            pass
-
-        # If it's not a type variable, find an instance for that concrete type
+        # If it's not a type variable, find an instance for that concrete type,
+        # and get the dictionary for that instance (e.g. the instance for `Show
+        # [a]` if the concrete type is [Int]`).
         (substitution, instance) = self._find_matching_instance(predicate)
         instance_fn = self._instance_to_dict_fn(instance)
 
@@ -527,6 +527,57 @@ class Context:
         ]
 
         return ECall(return_type, instance_fn, instance_predicate_args)
+
+    def _find_dictionary_for_predicate(self, predicates_in_scope, predicate):
+        ''' Return an expression that uses one of the passed-in dictionaries.
+
+        This expression might directly reference it or might have to take steps
+        to extract the superclass field.
+        '''
+        # Loop over the predicates that dictionaries are passed in for.
+        # See if either it's possible to use one directly or get a superclass from it.
+        for (in_scope_p, name) in predicates_in_scope:
+            # Create an expression for the current dictionary's variable
+            typ = TConstructor(_class_to_dictionary_name(predicate.tclass))
+            expr = EVariable(typ, name)
+
+            if in_scope_p == predicate:
+                # the passed-in dictionary works
+                return exp
+
+            # Look for superclasses of the class in `in_scope_p` that might work:
+            super_expr = self._find_super(in_scope_p, predicate, expr)
+            if super_expr is not None:
+                return super_expr
+
+        raise RuntimeError(f'could not find dictionary for predicate {predicate}')
+
+    def _find_super(self, in_scope_p, predicate, expr):
+        ''' See if `predicate` matches any superclass of `in_scope_p` '''
+        class_def = self.get_class_def(in_scope_p.tclass)
+        super_classes = class_def.supers
+
+        for super_class in super_classes:
+            super_pred = Predicate(super_class, in_scope_p.t)
+
+            dictionary_name = _class_to_dictionary_name(super_class)
+            t = TApplication(TConstructor(dictionary_name), predicate.t)
+
+            field_name = _to_super_field_name(super_class)
+
+            super_expr = EAccess(t, expr, field_name)
+
+            if super_pred == predicate:
+                # Match found. Take the existing dictionary and get this
+                # superclass out of it.
+                return super_expr
+
+            # Check superclasses recursively
+            recursive_super_expr = self._find_super(super_class, predicate, super_expr)
+            if recursive_super_expr is not None:
+                return recursive_super_expr
+
+        return None
 
     def _find_matching_instance(self, predicate):
         ''' Find an instance that matches the predicate
@@ -584,3 +635,7 @@ def _pred_type_to_arg_type(self, predicate):
         TConstructor(_class_to_dictionary_name(predicate.tclass)),
         predicate.t
     )
+
+
+def _to_super_field_name(self, tclass):
+    return "super" + tclass.name
