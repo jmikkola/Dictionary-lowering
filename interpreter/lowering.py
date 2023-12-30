@@ -32,16 +32,64 @@ class LoweringInput:
             for instance in self.instances
         ]
 
-        # TODO
-        lowered_declarations = []
+        lowered_declarations = [
+            self._lower_method(context, declaration)
+            for declaration in self.declarations
+        ]
 
-        # TODO
-        dictionaries = []
+        dictionaries = [
+            self._make_dictionary(class_def)
+            for class_def in self.classes
+        ]
 
         return LoweringOutput(
             dictionary_functions + lowered_declarations,
             dictionaries
         )
+
+    def _make_dictionary(self, class_def):
+        dictionary_name  = _class_to_dictionary_name(class_def.tclass)
+
+        # Create fields for referencing the dictionaries of superclasses.
+        tv = TVariable(class_def.tvar)
+        super_fields = [
+            self._to_super_field(super_class, tv)
+            for super_class in class_def.supers
+        ]
+
+        # Remove the qualification from the method types because classes don't
+        # exist in the output code. The actual implementations will also get
+        # lowered so that they don't need predicates.
+        method_fields = [
+            (method_decl.name, method_decl.get_type())
+            for method_decl in class_def.methods
+        ]
+
+        fields = super_fields + method_fields
+
+        return Dictionary(
+            dictionary_name,
+            type_variables,
+            fields
+        )
+
+    def _to_super_field(self, tclass, tv):
+        # Prefix the field's name with 'super' to note the fact that this
+        # references another dictionary
+        name = "super" + tclass.name
+        # The type of the field is the superclass's dictionary type.
+        #
+        # It uses the same type variable as the current dictionary because the
+        # superclass instance will be on the same concrete type.
+        #
+        # This isn't concerned with what other classes a particular instance
+        # might depend upon.
+        dictionary_name = _class_to_dictionary_name(tclass)
+        t = TApplication(TConstructor(dictionary_name), TVariable(tv))
+        return (name, t)
+
+    def _lower_method(self, context, declaration):
+        pass # TODO
 
     def _make_dictionary_fn(self, context, instance):
         # Arg names for the function that produces the dictionary
@@ -207,11 +255,12 @@ class LoweringOutput:
 class Dictionary:
     ''' Represents the struct used to pass class methods around '''
 
-    # name: str, type_vars: list[str], method_fields: list[tuple[str, Type]]
-    def __init__(self, name: str, type_vars: list, method_fields: list):
+    # name: str, type_vars: list[str], fields: list[tuple[str, Type]]
+    def __init__(self, name: str, type_vars: list, fields: list):
+        ''' fields contains both methods and superclasses '''
         self.name = name
         self.type_vars = type_vars
-        self.method_fields = method_fields
+        self.fields = fields
 
     def __str__(self):
         tvs = ''
@@ -220,7 +269,7 @@ class Dictionary:
 
         header = f'struct {self.name}{tvs} {{'
         lines = [header]
-        for (name, t) in self.method_fields:
+        for (name, t) in self.fields:
             lines.append(f'  {name}: {type},')
 
         lines.append('}')
@@ -315,3 +364,6 @@ class Context:
 def _predicate_to_arg_name(predicate):
     class_name = predicate.tclass.name
     return f'dict_{class_name}_{predicate.t}'
+
+def _class_to_dictionary_name(tclass):
+    return tclass.name + "Methods"
