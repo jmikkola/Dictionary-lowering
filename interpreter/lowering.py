@@ -309,19 +309,28 @@ class LoweringInput:
     def _rewrite_static_reference(self, context, declaration: DFunction, expression: EVariable):
         qualified = declaration.t
         try:
+            # Find out how the function's type was instantiated here
             substitution = match(qualified.t, expression.get_type())
         except TypeError as e:
             raise TypeError(f'type error in using {expression}: {e}')
 
+        # Determine what concrete types the predicates now have
         predicates = substitution.apply_to_list(qualified.predicates)
         dictionary_args = []
 
+        # Get the dictionaries for those predicates
         for pred in predicates:
             dictionary = context.lookup_dictionary(pred)
             dictionary_args.append(dictionary)
 
-        t = None # TODO
-        return EPartial(t, expression, dictionary_args)
+        # Create a new type for `expression`, now that it takes arguments:
+        called_type = make_function_type(
+            arg_types=[arg.get_type() for arg in dictionary_args],
+            return_type=expression.get_type()
+        )
+        variable = EVariable(called_type, expression.name)
+
+        return EPartial(expression.get_type(), variable, dictionary_args)
 
     def _rewrite_class_call(self, context, method: MethodDecl, expression: EVariable):
         instance_type = context.find_instance_type(method, expression.get_type())
