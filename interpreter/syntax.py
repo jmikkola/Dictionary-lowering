@@ -21,6 +21,9 @@ class LString(Literal):
     def __repr__(self):
         return f'LString({repr(self.value)})'
 
+    def __eq__(self, o):
+        return isinstance(o, LString) and o.value == self.value
+
     def get_type(self) -> Type:
         return TConstructor('String')
 
@@ -35,6 +38,9 @@ class LInt(Literal):
     def __repr__(self):
         return f'LInt({repr(self.value)})'
 
+    def __eq__(self, o):
+        return isinstance(o, LInt) and o.value == self.value
+
     def get_type(self) -> Type:
         return TConstructor('Int')
 
@@ -48,6 +54,9 @@ class LFloat(Literal):
 
     def __repr__(self):
         return f'LFloat({repr(self.value)})'
+
+    def __eq__(self, o):
+        return isinstance(o, LFloat) and o.value == self.value
 
     def get_type(self) -> Type:
         return TConstructor('Float')
@@ -68,6 +77,9 @@ class ELiteral(Expression):
     def __repr__(self):
         return f'ELiteral({repr(self.literal)})'
 
+    def __eq__(self, o):
+        return isinstance(o, ELiteral) and o.literal == self.literal
+
     def get_type(self) -> Type:
         return self.literal.get_type()
 
@@ -82,6 +94,9 @@ class EVariable(Expression):
 
     def __repr__(self):
         return f'EVariable({repr(self.name)})'
+
+    def __eq__(self, o):
+        return isinstance(o, EVariable) and o.t == self.t and o.name == self.name
 
     def get_type(self) -> Type:
         return self.t
