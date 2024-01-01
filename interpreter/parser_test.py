@@ -3,10 +3,11 @@ import unittest
 from interpreter import syntax
 from interpreter import types
 from interpreter.parser import (
+    _parse_class_definition,
     _parse_expression,
     _parse_function_declaration,
     _parse_lists,
-    _parse_predicated_type,
+    _parse_qualified_type,
     _parse_type,
 )
 
@@ -130,7 +131,7 @@ class ParserTest(unittest.TestCase):
 
     def test_parses_predicated_type(self):
         text = '(=> ((Show a) (Eq a)) (List a))'
-        result = _parse_predicated_type(_parse_lists(text)[0])
+        result = _parse_qualified_type(_parse_lists(text)[0])
         expected = types.Qualified(
             [
                 types.Predicate(
@@ -212,6 +213,80 @@ class ParserTest(unittest.TestCase):
                 ]
             )
         )
+        self.assertEqual(expected, result)
+
+    def test_parses_class_definition(self):
+        text = '''
+      (class (Foldable t)
+        (:: foldl (Fn (Fn b a b) b (t a) b))
+        (:: elem (=> ((Eq a)) (Fn a (t a) Bool))))
+'''
+        result = _parse_class_definition(_parse_lists(text)[0])
+
+        a = types.TVariable.from_varname('a')
+        b = types.TVariable.from_varname('b')
+        t = types.TVariable.from_varname('t')
+
+        expected = syntax.ClassDef(
+            types.TClass('Foldable'),
+            [],
+            t.type_variable,
+            [
+                syntax.MethodDecl(
+                    'foldl',
+                    syntax.Qualified(
+                        [],
+                        types.make_function_type(
+                            [
+                                types.make_function_type([b, a], b),
+                                 b,
+                                 types.TApplication(t, [a]),
+                            ],
+                            b
+                        )
+                    )
+                ),
+                syntax.MethodDecl(
+                    'elem',
+                    syntax.Qualified(
+                        [types.Predicate(types.TClass('Eq'), a)],
+                        types.make_function_type(
+                            [a, types.TApplication(t, [a])],
+                            types.TConstructor('Bool')
+                        )
+                    )
+                ),
+            ]
+        )
+
+        self.assertEqual(expected, result)
+
+    def test_parses_class_definition_with_supers(self):
+        text = '''
+      (class (Ord a) superclasses (Eq)
+        (:: < (Fn a a Bool)))
+'''
+        result = _parse_class_definition(_parse_lists(text)[0])
+
+        a = types.TVariable.from_varname('a')
+        expected = syntax.ClassDef(
+            types.TClass('Ord'),
+            ['Eq'],
+            a.type_variable,
+            [
+                syntax.MethodDecl(
+                    '<',
+                    syntax.Qualified(
+                        [],
+                        types.make_function_type(
+                            [a, a],
+                            types.TConstructor('Bool')
+                        )
+                    )
+                )
+            ]
+        )
+
         self.assertEqual(expected, result)
 
 

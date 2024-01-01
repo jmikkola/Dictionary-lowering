@@ -359,6 +359,8 @@ class MethodDecl:
 
 
 class ClassDef:
+    # supers: list[TClass]
+    # methods: list[MethodDecl]
     def __init__(self, tclass: TClass, supers: list, tvar: TypeVariable, methods: list):
         self.tclass = tclass
         self.supers = supers

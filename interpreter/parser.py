@@ -6,6 +6,73 @@ from interpreter import syntax
 from interpreter import types
 
 
+def _parse_class_definition(sexpr):
+    ''' Parses the definition of a typeclass
+
+    Examples:
+      (class (Show a)
+        (:: show (Fn a String)))
+
+      (class (Ord a) superclasses (Eq)
+        (:: < (Fn a a Bool))
+        (:: <= (Fn a a Bool))
+        (:: max (Fn a a a))
+        (:: min (Fn a a a)))
+
+      (class (Foldable t)
+        (:: foldl (Fn (Fn b a b) b (t a) b))
+        (:: elem (=> ((Eq a)) (Fn a (t a) Bool))))
+    '''
+
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) > 1)
+
+    class_predicate = _parse_predicate(sexpr[1])
+
+    rest = sexpr[2:]
+
+    if len(rest) > 0 and rest[0] == 'superclasses':
+        supers = rest[1]
+        rest = rest[2:]
+
+        assert(isinstance(supers, list))
+        for s in supers:
+            assert(isinstance(s, str))
+            assert(s[0].isupper())
+    else:
+        supers = []
+
+    methods = [
+        _parse_method_decl(decl)
+        for decl in rest
+    ]
+
+    return syntax.ClassDef(
+        tclass=class_predicate.tclass,
+        supers=supers,
+        tvar=class_predicate.t.type_variable,
+        methods=methods,
+    )
+
+
+def _parse_method_decl(sexpr):
+    ''' Parse the declaration of a method on a class.
+
+    Example:
+      (:: elem (=> ((Eq a)) (Fn a (t a) Bool)))
+    '''
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) == 3)
+    assert(sexpr[0] == '::')
+
+    name = sexpr[1]
+    assert(isinstance(name, str))
+
+    qual_type = _parse_qualified_type(sexpr[2])
+
+    return syntax.MethodDecl(name, qual_type)
+
+
 def _parse_function_declaration(sexpr):
     ''' Parses a function declaration.
 
@@ -29,7 +96,7 @@ def _parse_function_declaration(sexpr):
         assert(isinstance(a, str))
 
     if len(sexpr) == 5:
-        t = _parse_predicated_type(sexpr[3])
+        t = _parse_qualified_type(sexpr[3])
         body = _parse_expression(sexpr[4])
     else:
         t = None
@@ -38,7 +105,7 @@ def _parse_function_declaration(sexpr):
     return syntax.DFunction(name, t, arg_names, body)
 
 
-def _parse_predicated_type(sexpr):
+def _parse_qualified_type(sexpr):
     ''' Parses a qualified type.
 
     Example:
