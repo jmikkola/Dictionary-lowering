@@ -4,6 +4,7 @@ from interpreter import syntax
 from interpreter import types
 from interpreter.parser import (
     _parse_expression,
+    _parse_function_declaration,
     _parse_lists,
     _parse_predicated_type,
     _parse_type,
@@ -144,6 +145,34 @@ class ParserTest(unittest.TestCase):
             types.TApplication(
                 types.TConstructor('List'),
                 [types.TVariable.from_varname('a')]
+            )
+        )
+        self.assertEqual(expected, result)
+
+    def test_parses_function_declaration(self):
+        text = '''
+(fn times_two (x)
+  (Fn Int Int)
+  (* 2 x))
+'''
+        result = _parse_function_declaration(_parse_lists(text)[0])
+        expected = syntax.DFunction(
+            'times_two',
+            types.Qualified(
+                [],
+                types.TApplication(
+                    types.TConstructor('Fn'),
+                    [types.TConstructor('Int'), types.TConstructor('Int')]
+                )
+            ),
+            ['x'],
+            syntax.ECall(
+                None,
+                syntax.EVariable(None, '*'),
+                [
+                    syntax.ELiteral(syntax.LInt(2)),
+                    syntax.EVariable(None, 'x'),
+                ]
             )
         )
         self.assertEqual(expected, result)

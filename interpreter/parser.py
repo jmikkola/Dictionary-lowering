@@ -6,6 +6,38 @@ from interpreter import syntax
 from interpreter import types
 
 
+def _parse_function_declaration(sexpr):
+    ''' Parses a function declaration.
+
+    Examples:
+      (fn some_fn (a b)
+         (Fn Int Int Int)
+         (+ a b))
+
+      (fn untyped_fn (a b)
+         (+ a b))
+    '''
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) in [4, 5])
+
+    name = sexpr[1]
+    assert(isinstance(name, str))
+
+    arg_names = sexpr[2]
+    assert(isinstance(arg_names, list))
+    for a in arg_names:
+        assert(isinstance(a, str))
+
+    if len(sexpr) == 5:
+        t = _parse_predicated_type(sexpr[3])
+        body = _parse_expression(sexpr[4])
+    else:
+        t = None
+        body = _parse_expression(sexpr[3])
+
+    return syntax.DFunction(name, t, arg_names, body)
+
+
 def _parse_predicated_type(sexpr):
     ''' Parses a qualified type.
 
