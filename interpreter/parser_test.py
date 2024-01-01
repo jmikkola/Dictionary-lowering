@@ -3,6 +3,7 @@ import unittest
 from interpreter import syntax
 from interpreter import types
 from interpreter.parser import (
+    ParseResult,
     _parse_class_definition,
     _parse_expression,
     _parse_function_declaration,
@@ -10,6 +11,7 @@ from interpreter.parser import (
     _parse_lists,
     _parse_qualified_type,
     _parse_type,
+    parse,
 )
 
 
@@ -324,6 +326,90 @@ class ParserTest(unittest.TestCase):
                     )
                 ),
             ]
+        )
+
+        self.assertEqual(expected, result)
+
+    def test_parse(self):
+        text = '''
+(class (Steppable a)
+  (:: step (Fn a a)))
+
+(instance (Steppable Int)
+  (fn step (x) (+ x 1)))
+
+(fn step_all (xs)
+  (=> ((Steppable a)) (Fn (List a) (List a)))
+  (map step xs))
+'''
+        result = parse(text)
+
+        a = types.TVariable.from_varname('a')
+        List = types.TConstructor('List')
+        List_a = types.TApplication(List, [a])
+
+        step_all = syntax.DFunction(
+            'step_all',
+            types.Qualified(
+                [types.Predicate(types.TClass('Steppable'), a)],
+                types.make_function_type([List_a], List_a)
+            ),
+            ['xs'],
+            syntax.ECall(
+                None,
+                syntax.EVariable(None, 'map'),
+                [
+                    syntax.EVariable(None, 'step'),
+                    syntax.EVariable(None, 'xs')
+                ]
+            )
+        )
+
+        steppable = syntax.ClassDef(
+            types.TClass('Steppable'),
+            [],
+            a.type_variable,
+            [
+                syntax.MethodDecl(
+                    'step',
+                    syntax.Qualified(
+                        [],
+                        types.make_function_type([a], a)
+                    )
+                ),
+            ]
+        )
+
+        step_int = syntax.InstanceDef(
+            types.Qualified(
+                [],
+                types.Predicate(
+                    types.TClass('Steppable'),
+                    types.TConstructor('Int')
+                )
+            ),
+            [
+                syntax.DFunction(
+                    'step',
+                    None,
+                    ['x'],
+                    syntax.ECall(
+                        None,
+                        syntax.EVariable(None, '+'),
+                        [
+                            syntax.EVariable(None, 'x'),
+                            syntax.ELiteral(syntax.LInt(1)),
+                        ]
+                    )
+                ),
+            ]
+        )
+
+
+        expected = ParseResult(
+            functions=[step_all],
+            classes=[steppable],
+            instances=[step_int],
         )
 
         self.assertEqual(expected, result)

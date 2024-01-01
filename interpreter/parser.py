@@ -6,6 +6,55 @@ from interpreter import syntax
 from interpreter import types
 
 
+class ParseResult:
+    def __init__(self, functions, classes, instances):
+        self.functions = functions
+        self.classes = classes
+        self.instances = instances
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, ParseResult) and
+            o.functions == self.functions and
+            o.classes == self.classes and
+            o.instances == self.instances
+        )
+
+
+def parse(text: str) -> ParseResult:
+    s_expressions = _parse_lists(text)
+
+    functions = []
+    classes = []
+    instances = []
+
+    for sexpr in s_expressions:
+        parsed = _parse_top_level(sexpr)
+        if isinstance(parsed, syntax.InstanceDef):
+            instances.append(parsed)
+        elif isinstance(parsed, syntax.ClassDef):
+            classes.append(parsed)
+        elif isinstance(parsed, syntax.DFunction):
+            functions.append(parsed)
+
+    return ParseResult(functions, classes, instances)
+
+
+def _parse_top_level(sexpr):
+    ''' Parses a single top-level definition '''
+
+    if isinstance(sexpr, list) and len(sexpr) > 0:
+        first = sexpr[0]
+        if first == 'instance':
+            return _parse_instance_definition(sexpr)
+        elif first == 'class':
+            return _parse_class_definition(sexpr)
+        elif first == 'fn':
+            return _parse_function_declaration(sexpr)
+
+    raise RuntimeError(f'Unexpected expression at the top level: {sexpr}')
+
+
 def _parse_instance_definition(sexpr):
     ''' Parses an instance of a class.
 
@@ -342,7 +391,7 @@ def _parse_let_bindings(sexprs):
 def _parse_lists(text: str) -> list:
     ''' Returns a list of the parsed s-expressions.
 
-    Example: _parse_lists("(123)") returns ["123"]
+    Example: _parse_lists("(123)") returns [["123"]]
     '''
     return _parse_tokens(_tokenize(text))
 
