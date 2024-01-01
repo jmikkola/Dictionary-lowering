@@ -6,6 +6,7 @@ from interpreter.parser import (
     _parse_class_definition,
     _parse_expression,
     _parse_function_declaration,
+    _parse_instance_definition,
     _parse_lists,
     _parse_qualified_type,
     _parse_type,
@@ -284,6 +285,44 @@ class ParserTest(unittest.TestCase):
                         )
                     )
                 )
+            ]
+        )
+
+        self.assertEqual(expected, result)
+
+
+    def test_parses_instance_definition(self):
+        text = '''
+            (instance (=> ((Show a)) (Show (List a)))
+                (fn show (x) (concat "[" "]")))
+'''
+        result = _parse_instance_definition(_parse_lists(text)[0])
+
+        a = types.TVariable.from_varname('a')
+        Show = types.TClass('Show')
+        List = types.TConstructor('List')
+        expected = syntax.InstanceDef(
+            types.Qualified(
+                [types.Predicate(Show, a)],
+                types.Predicate(
+                    Show,
+                    types.TApplication(List, [a])
+                )
+            ),
+            [
+                syntax.DFunction(
+                    'show',
+                    None,
+                    ['x'],
+                    syntax.ECall(
+                        None,
+                        syntax.EVariable(None, 'concat'),
+                        [
+                            syntax.ELiteral(syntax.LString("[")),
+                            syntax.ELiteral(syntax.LString("]")),
+                        ]
+                    )
+                ),
             ]
         )
 

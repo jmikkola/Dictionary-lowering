@@ -6,6 +6,28 @@ from interpreter import syntax
 from interpreter import types
 
 
+def _parse_instance_definition(sexpr):
+    ''' Parses an instance of a class.
+
+    Example:
+      (instance (=> ((Show a)) (Show (List a)))
+        (fn show (x)
+          (concat "[" (join " " (map show x)) "]")))
+    '''
+
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) > 1)
+
+    qualified_predicate = _parse_qualified_predicate(sexpr[1])
+
+    method_impls = [
+        _parse_function_declaration(method)
+        for method in sexpr[2:]
+    ]
+
+    return syntax.InstanceDef(qualified_predicate, method_impls)
+
+
 def _parse_class_definition(sexpr):
     ''' Parses the definition of a typeclass
 
@@ -111,13 +133,26 @@ def _parse_qualified_type(sexpr):
     Example:
       (=> ((Show a) (Eq a)) (List a))
     '''
+    return _parse_qualified(sexpr, _parse_type)
+
+
+def _parse_qualified_predicate(sexpr):
+    ''' Parses a qualified predicate.
+
+    Example:
+      (=> ((Show a)) (Show (List a)))
+    '''
+    return _parse_qualified(sexpr, _parse_predicate)
+
+
+def _parse_qualified(sexpr, inner_parser):
     if isinstance(sexpr, list) and sexpr[0] == '=>':
         assert(len(sexpr) == 3)
         predicates = _parse_predicates(sexpr[1])
-        t = _parse_type(sexpr[2])
+        t = inner_parser(sexpr[2])
     else:
         predicates = []
-        t = _parse_type(sexpr)
+        t = inner_parser(sexpr)
 
     return types.Qualified(predicates, t)
 
