@@ -6,6 +6,48 @@ from interpreter import syntax
 from interpreter import types
 
 
+def _parse_predicated_type(sexpr):
+    ''' Parses a qualified type.
+
+    Example:
+      (=> ((Show a) (Eq a)) (List a))
+    '''
+    if isinstance(sexpr, list) and sexpr[0] == '=>':
+        assert(len(sexpr) == 3)
+        predicates = _parse_predicates(sexpr[1])
+        t = _parse_type(sexpr[2])
+    else:
+        predicates = []
+        t = _parse_type(sexpr)
+
+    return types.Qualified(predicates, t)
+
+
+def _parse_predicates(sexpr):
+    ''' Parses the predicate list from a qualified type. '''
+
+    assert(isinstance(sexpr, list))
+    return [_parse_predicate(e) for e in sexpr]
+
+
+def _parse_predicate(sexpr):
+    ''' Parses a single predicate.
+
+    Example: (Show a)
+    '''
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) == 2)
+
+    class_name = sexpr[0]
+    assert(class_name[0].isupper())
+    tclass = types.TClass(class_name)
+
+    # This is _usually_ just a type variable, but not always
+    t = _parse_type(sexpr[1])
+
+    return types.Predicate(tclass, t)
+
+
 def _parse_expression(sexpr):
     ''' Parses expressions from s-expressions.
 

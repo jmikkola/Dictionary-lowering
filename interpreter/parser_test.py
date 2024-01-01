@@ -5,6 +5,7 @@ from interpreter import types
 from interpreter.parser import (
     _parse_expression,
     _parse_lists,
+    _parse_predicated_type,
     _parse_type,
 )
 
@@ -123,7 +124,28 @@ class ParserTest(unittest.TestCase):
                 syntax.ELiteral(syntax.LInt(1)),
                 syntax.ELiteral(syntax.LInt(2)),
             ]
+        )
+        self.assertEqual(expected, result)
+
+    def test_parses_predicated_type(self):
+        text = '(=> ((Show a) (Eq a)) (List a))'
+        result = _parse_predicated_type(_parse_lists(text)[0])
+        expected = types.Qualified(
+            [
+                types.Predicate(
+                    types.TClass('Show'),
+                    types.TVariable.from_varname('a')
+                ),
+                types.Predicate(
+                    types.TClass('Eq'),
+                    types.TVariable.from_varname('a')
+                ),
+            ],
+            types.TApplication(
+                types.TConstructor('List'),
+                [types.TVariable.from_varname('a')]
             )
+        )
         self.assertEqual(expected, result)
 
 

@@ -66,8 +66,9 @@ class TConstructor(Type):
 
 
 class TApplication(Type):
-    def __init__(self, t, args):
+    def __init__(self, t, args: list):
         self.t = t
+        assert(isinstance(args, list))
         self.args = args
 
     def __str__(self):
