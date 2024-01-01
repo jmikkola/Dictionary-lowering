@@ -11,7 +11,6 @@ The basic lowering logic has been ported from the Haskell project.
 
 - The next step is to add a simple front-end (ml-ish syntax?)
     - Parser is in progress
-    - TODO: add EIf
 - Use that to build unit tests
 - The next milestone is to have it read in (typed) code with classes and instances and output
   lowered code (print it out), making it possible to visually inspect that this works and is sane.

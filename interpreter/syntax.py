@@ -257,6 +257,32 @@ class ELet(Expression):
         return self.t
 
 
+class EIf(Expression):
+    def __init__(self, t: Type, test: Expression, if_case: Expression, else_case: Expression):
+        self.t = t
+        self.test = test
+        self.if_case = if_case
+        self.else_case = else_case
+
+    def __str__(self):
+        return f'(if {self.test} {self.if_case} {self.else_case})'
+
+    def __repr__(self):
+        return f'EIf({repr(self.t)}, {repr(self.test)}, {repr(self.if_case)}, {repr(self.else_case)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, EIf) and
+            o.t == self.t and
+            o.test == self.test and
+            o.if_case == self.if_case and
+            o.else_case == self.else_case
+        )
+
+    def get_type(self) -> Type:
+        return self.t
+
+
 class ELambda(Expression):
     def __init__(self, t: Type, arg_names: list, body: Expression):
         self.t = t

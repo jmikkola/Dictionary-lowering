@@ -4,7 +4,7 @@
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
     Expression,
-    ELambda, ELiteral, ECall, EConstruct,
+    ELambda, ELiteral, ECall, EConstruct, EIf,
     EPartial, ELet, ELambda, Binding, EVariable,
     MethodDecl, EAccess,
 )
@@ -266,6 +266,12 @@ class LoweringInput:
             lambda_context = context.for_method(expression.arg_names, [])
             body = self._lower_expression(lambda_context, expression.body)
             return ELambda(expression.get_type(), expression.arg_names, body)
+
+        if isinstance(expression, EIf):
+            test = self._lower_expression(context, expression.test)
+            if_case = self._lower_expression(context, expression.if_case)
+            else_case = self._lower_expression(context, expression.else_case)
+            return EIf(expression.get_type(), test, if_case, else_case)
 
         # Where dictionary passing is actually added:
 
