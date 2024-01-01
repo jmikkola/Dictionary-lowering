@@ -33,6 +33,18 @@ class ParserTest(unittest.TestCase):
         expected = syntax.EVariable(None, '+add')
         self.assertEqual(expected, result)
 
+    def test_parses_let_binding(self):
+        result = _parse_expression(_parse_lists('(let ((x 123) (y 456)) x)')[0])
+        expected = syntax.ELet(
+            None,
+            [
+             syntax.Binding('x', syntax.ELiteral(syntax.LInt(123))),
+             syntax.Binding('y', syntax.ELiteral(syntax.LInt(456))),
+            ],
+            syntax.EVariable(None, 'x')
+        )
+        self.assertEqual(expected, result)
+
 
 if __name__ == '__main__':
     unittest.main()

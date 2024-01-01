@@ -16,11 +16,36 @@ def _parse_expression(sexpr):
         return syntax.EVariable(None, sexpr)
     else:
         assert(isinstance(sexpr, list))
+        first = sexpr[0]
+        if first == '::':
+            # TODO: typed expression
+            pass
+        elif first == 'let':
+            return _parse_let(sexpr)
+
         # Special forms (that aren't function invocation) to handle:
         # first arg is another list
         # let, if, new, lambda, access
         # typed
 
+
+def _parse_let(sexpr):
+    assert(len(sexpr) == 3)
+    bindings = _parse_let_bindings(sexpr[1])
+    inner = _parse_expression(sexpr[2])
+    return syntax.ELet(None, bindings, inner)
+
+def _parse_let_bindings(sexprs):
+    assert(isinstance(sexprs, list))
+    bindings = []
+    for sexpr in sexprs:
+        assert(isinstance(sexpr, list))
+        assert(len(sexpr) == 2)
+        name = sexpr[0]
+        value = _parse_expression(sexpr[1])
+        binding = syntax.Binding(name, value)
+        bindings.append(binding)
+    return bindings
 
 def _parse_lists(text: str) -> list:
     ''' Returns a list of the parsed s-expressions '''
