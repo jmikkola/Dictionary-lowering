@@ -119,6 +119,14 @@ class ECall(Expression):
     def __repr__(self):
         return f'ECall({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, ECall) and
+            o.t == self.t and
+            o.f_expr == self.f_expr and
+            o.arg_exprs == self.arg_exprs
+        )
+
     def get_type(self) -> Type:
         return self.t
 
@@ -140,6 +148,14 @@ class EConstruct(Expression):
 
     def __repr__(self):
         return f'EConstruct({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, EConstruct) and
+            o.t == self.t and
+            o.struct_name == self.struct_name and
+            o.arg_exprs == self.arg_exprs
+        )
 
     def get_type(self) -> Type:
         return self.t
@@ -163,6 +179,14 @@ class EPartial(Expression):
     def __repr__(self):
         return f'EPartial({repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, EPartial) and
+            o.t == self.t and
+            o.f_expr == self.f_expr and
+            o.arg_exprs == self.arg_exprs
+        )
+
     def get_type(self) -> Type:
         return self.t
 
@@ -181,6 +205,14 @@ class EAccess(Expression):
     def __repr__(self):
         return f'EAccess({repr(self.t)}, {repr(self.lhs)}, {repr(self.field)})'
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, EAccess) and
+            o.t == self.t and
+            o.lhs == self.lhs and
+            o.field == self.field
+        )
+
     def get_type(self) -> Type:
         return self.t
 
@@ -194,6 +226,9 @@ class EParen(Expression):
 
     def __repr__(self):
         return f'EParen({repr(self.inner)})'
+
+    def __eq__(self, o):
+        return isinstance(o, EParen) and o.inner == self.inner
 
     def get_type(self) -> Type:
         return self.inner.get_type()
@@ -210,6 +245,9 @@ class Binding:
     def __repr__(self):
         return f'Binding({repr(self.name)}, {repr(self.value)})'
 
+    def __eq__(self, o):
+        return isinstance(o, Binding) and o.name == self.name and o.value == self.value
+
 
 class ELet(Expression):
     def __init__(self, t: Type, bindings: list, inner: Expression):
@@ -223,6 +261,14 @@ class ELet(Expression):
 
     def __repr__(self):
         return f'ELet({repr(self.bindings)}, {repr(self.inner)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, ELet) and
+            o.t == self.t and
+            o.bindings == self.bindings and
+            o.inner == self.inner
+        )
 
     def get_type(self) -> Type:
         return self.t
@@ -240,6 +286,14 @@ class ELambda(Expression):
 
     def __repr__(self):
         return f'ELambda({repr(self.arg_names)}, {repr(self.body)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, ELambda) and
+            o.t == self.t and
+            o.arg_names == self.arg_names and
+            o.body == self.body
+        )
 
     def get_type(self) -> Type:
         return self.t
@@ -263,6 +317,15 @@ class DFunction(Declaration):
     def __repr__(self):
         return f'DFunction({repr(self.name)}, {repr(self.t)}, {repr(self.arg_names)}, {repr(self.body)})'
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, DFunction) and
+            o.name == self.name and
+            o.t == self.t and
+            o.arg_names == self.arg_names and
+            o.body == self.body
+        )
+
 
 class MethodDecl:
     def __init__(self, method_name: str, qual_type: Qualified):
@@ -274,6 +337,13 @@ class MethodDecl:
 
     def __repr__(self):
         return f'MethodDecl({repr(self.method_name)}, {repr(self.qual_type)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, MethodDecl) and
+            o.method_name == self.method_name and
+            o.qual_type == self.qual_type
+        )
 
     def get_type(self):
         return self.qual_type.t
@@ -301,6 +371,15 @@ class ClassDef:
     def __repr__(self):
         return f'ClassDef({repr(self.tclass)}, {repr(self.supers)}, {repr(self.tvar)}, {repr(self.methods)})'
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, ClassDef) and
+            o.tclass == self.tclass and
+            o.supers == self.supers and
+            o.tvar == self.tvar and
+            o.methods == self.methods
+        )
+
     def get_method(self, name):
         for method in methods:
             if method.name == name:
@@ -321,6 +400,13 @@ class InstanceDef:
 
     def __repr__(self):
         return f'InstanceDef({repr(self.qual_pred)}, {repr(self.method_impls)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, InstanceDef) and
+            o.qual_pred == self.qual_pred and
+            o.method_impls == self.method_impls
+        )
 
     def get_class(self):
         pred = self.qual_pred.t

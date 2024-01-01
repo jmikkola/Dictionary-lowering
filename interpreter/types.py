@@ -163,6 +163,12 @@ class Substitution:
     def __init__(self, substitutions: dict):
         self.substitutions = substitutions
 
+    def __eq__(self, o):
+        return isinstance(o, Substitution) and o.substitutions == self.substitutions
+
+    def __repr__(self):
+        return f'Substitution({repr(self.substitutions)})'
+
     @classmethod
     def singleton(cls, type_variable: TypeVariable, replacement: Type):
         return Substitution({type_variable: replacement})
