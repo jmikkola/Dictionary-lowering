@@ -14,6 +14,8 @@ The basic lowering logic has been ported from the Haskell project.
 - Use that to build unit tests
 - The next milestone is to have it read in (typed) code with classes and instances and output
   lowered code (print it out), making it possible to visually inspect that this works and is sane.
+    - It might be useful to add a typecheck pass that can check that the user-provided types are
+      correct. This would also be useful for sanity-checking the output of the lowering pass.
 
 - And a treewalking interpreter
 - Idea: Add a type check pass after the lowering is done to sanity-check the output?
