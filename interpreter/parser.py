@@ -35,6 +35,8 @@ def _parse_expression(sexpr):
             return _parse_new(sexpr)
         elif first == '.':
             return _parse_access(sexpr)
+        elif first == '\\':
+            return _parse_lambda(sexpr)
         else:
             # assume it's a function call
             inner = [_parse_expression(e) for e in sexpr]
@@ -115,6 +117,22 @@ def _parse_access(sexpr):
     field_name = sexpr[2]
     assert(isinstance(field_name, str))
     return syntax.EAccess(None, struct_expr, field_name)
+
+
+def _parse_lambda(sexpr):
+    ''' Parses a lambda expression.
+
+    Example:
+      (\ (a b) (+ a b))
+    '''
+    assert(len(sexpr) == 3)
+    arg_names = sexpr[1]
+    assert(isinstance(arg_names, list))
+    for a in arg_names:
+        assert(isinstance(a, str))
+
+    body = _parse_expression(sexpr[2])
+    return syntax.ELambda(None, arg_names, body)
 
 
 def _parse_let(sexpr):

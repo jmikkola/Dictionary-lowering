@@ -100,6 +100,15 @@ class ParserTest(unittest.TestCase):
         )
         self.assertEqual(expected, result)
 
+    def test_parses_lambda(self):
+        result = _parse_expression(_parse_lists('(\ (a b) a)')[0])
+        expected = syntax.ELambda(
+            None,
+            ['a', 'b'],
+            syntax.EVariable(None, 'a')
+        )
+        self.assertEqual(expected, result)
+
     def test_parses_call_no_args(self):
         result = _parse_expression(_parse_lists('(exit)')[0])
         expected = syntax.ECall(None, syntax.EVariable(None, 'exit'), [])

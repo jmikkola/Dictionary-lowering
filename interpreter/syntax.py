@@ -291,7 +291,7 @@ class ELambda(Expression):
 
     def __str__(self):
         args = ' '.join(self.arg_names)
-        return f'(\{args} -> {self.body})'
+        return f'(\ {args} -> {self.body})'
 
     def __repr__(self):
         return f'ELambda({repr(self.arg_names)}, {repr(self.body)})'
