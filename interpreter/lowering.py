@@ -4,7 +4,7 @@
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
     Expression,
-    ELambda, ELiteral, EParen, ECall, EConstruct,
+    ELambda, ELiteral, ECall, EConstruct,
     EPartial, ELet, ELambda, Binding, EVariable,
     MethodDecl, EAccess,
 )
@@ -229,10 +229,6 @@ class LoweringInput:
 
         # Recursive cases:
 
-        if isinstance(expression, EParen):
-            new_inner = self._lower_expression(context, expression.inner)
-            return EParen(new_inner)
-
         if isinstance(expression, ECall):
             # If f_expr is a function that needs dictionaries passed, this
             # will partially apply those arguments to it.
@@ -348,8 +344,7 @@ class LoweringInput:
         predicate = Predicate(method.tclass, instance_type)
         dictionary = context.lookup_dictionary_all(predicate)
 
-        get_dict_field = EAccess(expression.get_type(), dictionary, expression.name)
-        return EParen(get_dict_field)
+        return EAccess(expression.get_type(), dictionary, expression.name)
 
 
 class LoweringOutput:

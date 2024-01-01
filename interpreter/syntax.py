@@ -217,23 +217,6 @@ class EAccess(Expression):
         return self.t
 
 
-class EParen(Expression):
-    def __init__(self, inner: Expression):
-        self.inner = inner
-
-    def __str__(self):
-        return '(' + str(self.inner) + ')'
-
-    def __repr__(self):
-        return f'EParen({repr(self.inner)})'
-
-    def __eq__(self, o):
-        return isinstance(o, EParen) and o.inner == self.inner
-
-    def get_type(self) -> Type:
-        return self.inner.get_type()
-
-
 class Binding:
     def __init__(self, name: str, value: Expression):
         self.name = name
