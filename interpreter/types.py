@@ -39,7 +39,7 @@ class TVariable(Type):
         return TVariable(TypeVariable(name))
 
     def apply(self, substitution):
-        replacement = substitution.get(type_variable)
+        replacement = substitution.get(self.type_variable)
         if replacement is not None:
             return replacement
         return self
@@ -86,12 +86,12 @@ class TApplication(Type):
 
     def free_type_vars(self):
         ftvs = self.t.free_type_vars()
-        for a in args:
+        for a in self.args:
             ftvs |= a.free_type_vars()
         return ftvs
 
     def apply(self, substitution):
-        return Substitution(
+        return TApplication(
             self.t.apply(substitution),
             substitution.apply_to_list(self.args)
         )
@@ -117,7 +117,7 @@ class Predicate:
         self.t = t
 
     def __str__(self):
-        return f'({self.tclass} {self.f})'
+        return f'({self.tclass} {self.t})'
 
     def __repr__(self):
         return f'Predicate({repr(self.tclass)}, {repr(self.t)})'

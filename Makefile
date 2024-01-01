@@ -1,4 +1,4 @@
-.PHONY: all test check TAGS
+.PHONY: all test check TAGS pylint
 
 
 all: check test TAGS
@@ -11,3 +11,6 @@ check:
 
 TAGS:
 	ctags -e -R .
+
+pylint:
+	pylint -E interpreter/

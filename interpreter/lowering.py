@@ -11,7 +11,7 @@ from interpreter.syntax import (
 
 from interpreter.types import (
     Qualified, Type, Substitution, TClass, TypeError,
-    Predicate, TConstructor, TApplication,
+    Predicate, TConstructor, TApplication, TVariable,
     match, make_function_type,
 )
 
@@ -69,9 +69,16 @@ class LoweringInput:
 
         fields = super_fields + method_fields
 
+        type_variables = set()
+        for method in class_def.methods:
+            method_type = method.get_type()
+            type_variables |= method_type.free_type_vars()
+
+        type_variable_strings = [str(tv) for tv in type_variables]
+
         return Dictionary(
             dictionary_name,
-            type_variables,
+            type_variable_strings,
             fields
         )
 
@@ -156,7 +163,7 @@ class LoweringInput:
         dictionary_type_name = _class_to_dictionary_name(tclass)
         struct_type = TApplication(
             TConstructor(dictionary_type_name),
-            instance_type
+            inst_t
         )
         function_type = make_function_type(arg_types, struct_type)
 
@@ -527,6 +534,8 @@ class Context:
             for p in instance_predicates
         ]
 
+        return_type = _return_type_from_fn_type(instance_fn.get_type())
+
         return ECall(return_type, instance_fn, instance_predicate_args)
 
     def _find_dictionary_for_predicate(self, predicates_in_scope, predicate):
@@ -544,7 +553,7 @@ class Context:
 
             if in_scope_p == predicate:
                 # the passed-in dictionary works
-                return exp
+                return expr
 
             # Look for superclasses of the class in `in_scope_p` that might work:
             super_expr = self._find_super(in_scope_p, predicate, expr)
@@ -630,7 +639,7 @@ def _instance_constructor_name(instance: InstanceDef) -> str:
     return f'make__{dict_name}__{type_name}'
 
 
-def _pred_type_to_arg_type(self, predicate):
+def _pred_type_to_arg_type(predicate):
     ''' Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>` '''
     return TApplication(
         TConstructor(_class_to_dictionary_name(predicate.tclass)),
@@ -638,5 +647,14 @@ def _pred_type_to_arg_type(self, predicate):
     )
 
 
-def _to_super_field_name(self, tclass):
+def _to_super_field_name(tclass):
     return "super" + tclass.name
+
+
+def _return_type_from_fn_type(t: Type) -> Type:
+    '''Assuming t is a function type, this returns the return type
+    of that function'''
+
+    assert(isinstance(t, TApplication))
+    assert(t.t == TConstructor('Fn'))
+    return t.args[-1]

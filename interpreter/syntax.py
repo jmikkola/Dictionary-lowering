@@ -90,7 +90,7 @@ class EVariable(Expression):
         self.name = name
 
     def __str__(self):
-        return name
+        return self.name
 
     def __repr__(self):
         return f'EVariable({repr(self.name)})'
@@ -147,7 +147,7 @@ class EConstruct(Expression):
         return f'({self.struct_name}{joined_args})'
 
     def __repr__(self):
-        return f'EConstruct({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+        return f'EConstruct({repr(self.struct_name)}, {repr(self.arg_exprs)})'
 
     def __eq__(self, o):
         return (
@@ -223,7 +223,7 @@ class Binding:
         self.value = value
 
     def __str__(self):
-        return f'{self.name} = {self.expression}'
+        return f'{self.name} = {self.value}'
 
     def __repr__(self):
         return f'Binding({repr(self.name)}, {repr(self.value)})'
@@ -392,7 +392,7 @@ class ClassDef:
         )
 
     def get_method(self, name):
-        for method in methods:
+        for method in self.methods:
             if method.name == name:
                 return method
         raise RuntimeError(f'could not find method by name: {name}')
@@ -405,7 +405,7 @@ class InstanceDef:
 
     def __str__(self):
         result = f'instance {self.qual_pred} where'
-        for method in method_impls:
+        for method in self.method_impls:
             result += '\n' + add_indent(str(method))
         return result
 
