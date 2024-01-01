@@ -177,6 +177,43 @@ class ParserTest(unittest.TestCase):
         )
         self.assertEqual(expected, result)
 
+    def test_parses_realistic_function(self):
+        ''' This function example is only realistic while this doesn't
+        have type inference, so the source text must be fully annotated with types '''
+
+        text = '''
+(fn times_two (x)
+  (Fn Int Int)
+  (::
+    ((:: * (Fn Int Int Int)) 2 (:: x Int))
+    Int))
+'''
+        result = _parse_function_declaration(_parse_lists(text)[0])
+
+        Fn = types.TConstructor('Fn')
+        Int = types.TConstructor('Int')
+
+        expected = syntax.DFunction(
+            'times_two',
+            types.Qualified(
+                [],
+                types.TApplication(Fn, [Int, Int])
+            ),
+            ['x'],
+            syntax.ECall(
+                Int,
+                syntax.EVariable(
+                    types.TApplication(Fn, [Int, Int, Int]),
+                    '*'
+                ),
+                [
+                    syntax.ELiteral(syntax.LInt(2)),
+                    syntax.EVariable(Int, 'x'),
+                ]
+            )
+        )
+        self.assertEqual(expected, result)
+
 
 if __name__ == '__main__':
     unittest.main()
