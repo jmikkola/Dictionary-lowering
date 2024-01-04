@@ -43,6 +43,7 @@ class LoweringInput:
         self.instances = instances
 
     def lower(self):
+        ''' returns a LoweringOutput containing the results '''
         context = Context.build(self.classes, self.instances, self.declarations)
 
         dictionary_functions = [
@@ -81,7 +82,7 @@ class LoweringInput:
         # exist in the output code. The actual implementations will also get
         # lowered so that they don't need predicates.
         method_fields = [
-            (method_decl.name, method_decl.get_type())
+            (method_decl.method_name, method_decl.get_type())
             for method_decl in class_def.methods
         ]
 
@@ -386,6 +387,19 @@ class LoweringOutput:
         self.declarations = declarations
         self.dictionaries = dictionaries
 
+    def __eq__(self, o):
+        return (
+            isinstance(o, LoweringOutput) and
+            o.declarations == self.declarations and
+            o.dictionaries == self.dictionaries
+        )
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return f'LoweringOutput({repr(self.declarations)}, {repr(self.dictionaries)})'
+
 
 class Dictionary:
     ''' Represents the struct used to pass class methods around '''
@@ -409,6 +423,17 @@ class Dictionary:
 
         lines.append('}')
         return '\n'.join(lines)
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, Dictionary) and
+            o.name == self.name and
+            o.type_vars == self.type_vars and
+            o.fields == self.fields
+        )
+
+    def __repr__(self):
+        return f'Dictionary({repr(self.name)}, {repr(self.type_vars)}, {repr(self.fields)})'
 
 
 class Method:
@@ -448,7 +473,7 @@ class Context:
         }
 
         methods = {
-            method.name: Method(method.name, classdef.tclass, method.qualified)
+            method.method_name: Method(method.method_name, classdef.tclass, method.qual_type)
             for classdef in classes
             for method in classdef.methods
         }

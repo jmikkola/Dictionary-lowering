@@ -13,6 +13,9 @@ class TypeVariable:
     def __eq__(self, o):
         return isinstance(o, TypeVariable) and o.name == self.name
 
+    def __hash__(self):
+        return hash(('TypeVariable', self.name))
+
 
 class Type:
     pass
