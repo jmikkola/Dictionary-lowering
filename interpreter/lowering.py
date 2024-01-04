@@ -1,5 +1,23 @@
 # module lowering
 
+"""The lowering package replaces typeclasses with dictionaries.
+
+This takes in code that contains and uses classes and instances of classes. It
+outputs equivalent code that doesn't have any classes.
+
+Classes become "dictionaries" (structs) that have fields for holding the
+functions defined in a class. Instances become functions for producing values
+of those dictionaries. Class predicates on methods become additional arguments
+to those methods where the dictionaries are passed in.
+
+This package assumes a few things about the input code:
+
+- It is well-typed.
+- All expressions are annotated with types.
+- Validations have been done (e.g. classes referenced actually exist, class
+  hierarchies don't contain cycles)
+"""
+
 
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef,
