@@ -113,6 +113,8 @@ def _parse_class_definition(sexpr):
     else:
         supers = []
 
+    superclasses = [types.TClass(s) for s in supers]
+
     methods = [
         _parse_method_decl(decl)
         for decl in rest
@@ -120,7 +122,7 @@ def _parse_class_definition(sexpr):
 
     return syntax.ClassDef(
         tclass=class_predicate.tclass,
-        supers=supers,
+        supers=superclasses,
         tvar=class_predicate.t.type_variable,
         methods=methods,
     )

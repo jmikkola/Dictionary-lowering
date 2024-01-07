@@ -16,6 +16,9 @@ class TypeVariable:
     def __hash__(self):
         return hash(('TypeVariable', self.name))
 
+    def to_lisp(self):
+        return str(self)
+
 
 class Type:
     pass
@@ -26,13 +29,16 @@ class TVariable(Type):
         self.type_variable = type_variable
 
     def __str__(self):
-        return self.type_variable
+        return str(self.type_variable)
 
     def __repr__(self):
         return f'TVariable({repr(self.type_variable)})'
 
     def __eq__(self, o):
         return isinstance(o, TVariable) and o.type_variable == self.type_variable
+
+    def to_lisp(self):
+        return str(self)
 
     def free_type_vars(self):
         return set([self.type_variable])
@@ -58,11 +64,14 @@ class TConstructor(Type):
     def __repr__(self):
         return f'TConstructor({repr(self.type_name)})'
 
-    def free_type_vars(self):
-        return set()
-
     def __eq__(self, o):
         return isinstance(o, TConstructor) and o.type_name == self.type_name
+
+    def to_lisp(self):
+        return str(self)
+
+    def free_type_vars(self):
+        return set()
 
     def apply(self, substitution):
         return self
@@ -86,6 +95,11 @@ class TApplication(Type):
 
     def __eq__(self, o):
         return isinstance(o, TApplication) and o.t == self.t and o.args == self.args
+
+    def to_lisp(self):
+        lisp = [self.t.to_lisp()]
+        lisp += [a.to_lisp() for a in self.args]
+        return lisp
 
     def free_type_vars(self):
         ftvs = self.t.free_type_vars()
@@ -113,6 +127,9 @@ class TClass:
     def __eq__(self, o):
         return isinstance(o, TClass) and o.name == self.name
 
+    def to_lisp(self):
+        return str(self)
+
 
 class Predicate:
     def __init__(self, tclass: TClass, t: Type):
@@ -127,6 +144,9 @@ class Predicate:
 
     def __eq__(self, o):
         return isinstance(o, Predicate) and o.tclass == self.tclass and o.t == self.t
+
+    def to_lisp(self):
+        return [self.tclass.to_lisp(), self.t.to_lisp()]
 
     def apply(self, substitution):
         return Predicate(
@@ -154,6 +174,10 @@ class Qualified:
 
     def __eq__(self, o):
         return isinstance(o, Qualified) and o.predicates == self.predicates and o.t == self.t
+
+    def to_lisp(self):
+        predicates = [p.to_lisp() for p in self.predicates]
+        return ['=>', predicates, self.t.to_lisp()]
 
     def apply(self, substitution):
         return Qualified(

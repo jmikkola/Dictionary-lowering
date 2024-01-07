@@ -16,6 +16,8 @@ class LString(Literal):
         # (but, it uses single quotes instead of double quotes, so strip those
         # off and replace them)
         escaped = repr(self.value)[1:-1]
+        # Now double quotes need to be escaped
+        escaped = escaped.replace('"', '\\"')
         return '"' + escaped + '"'
 
     def __repr__(self):
@@ -23,6 +25,9 @@ class LString(Literal):
 
     def __eq__(self, o):
         return isinstance(o, LString) and o.value == self.value
+
+    def to_lisp(self):
+        return str(self)
 
     def get_type(self) -> Type:
         return TConstructor('String')
@@ -41,6 +46,9 @@ class LInt(Literal):
     def __eq__(self, o):
         return isinstance(o, LInt) and o.value == self.value
 
+    def to_lisp(self):
+        return str(self)
+
     def get_type(self) -> Type:
         return TConstructor('Int')
 
@@ -57,6 +65,9 @@ class LFloat(Literal):
 
     def __eq__(self, o):
         return isinstance(o, LFloat) and o.value == self.value
+
+    def to_lisp(self):
+        return str(self)
 
     def get_type(self) -> Type:
         return TConstructor('Float')
@@ -80,6 +91,9 @@ class ELiteral(Expression):
     def __eq__(self, o):
         return isinstance(o, ELiteral) and o.literal == self.literal
 
+    def to_lisp(self):
+        return str(self)
+
     def get_type(self) -> Type:
         return self.literal.get_type()
 
@@ -97,6 +111,12 @@ class EVariable(Expression):
 
     def __eq__(self, o):
         return isinstance(o, EVariable) and o.t == self.t and o.name == self.name
+
+    def to_lisp(self):
+        lisp = self.name
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
 
     def get_type(self) -> Type:
         return self.t
@@ -126,6 +146,13 @@ class ECall(Expression):
             o.f_expr == self.f_expr and
             o.arg_exprs == self.arg_exprs
         )
+
+    def to_lisp(self):
+        lisp = [self.f_expr.to_lisp()]
+        lisp += [a.to_lisp() for a in self.arg_exprs]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
 
     def get_type(self) -> Type:
         return self.t
@@ -157,6 +184,13 @@ class EConstruct(Expression):
             o.arg_exprs == self.arg_exprs
         )
 
+    def to_lisp(self):
+        lisp = ['new', self.struct_name]
+        lisp += [a.to_lisp() for a in self.arg_exprs]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
+
     def get_type(self) -> Type:
         return self.t
 
@@ -187,6 +221,13 @@ class EPartial(Expression):
             o.arg_exprs == self.arg_exprs
         )
 
+    def to_lisp(self):
+        lisp = ['*partial*', self.f_expr.to_lisp()]
+        lisp += [a.to_lisp() for a in self.arg_exprs]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
+
     def get_type(self) -> Type:
         return self.t
 
@@ -213,6 +254,12 @@ class EAccess(Expression):
             o.field == self.field
         )
 
+    def to_lisp(self):
+        lisp = ['.', self.lhs.to_lisp(), self.field]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
+
     def get_type(self) -> Type:
         return self.t
 
@@ -230,6 +277,9 @@ class Binding:
 
     def __eq__(self, o):
         return isinstance(o, Binding) and o.name == self.name and o.value == self.value
+
+    def to_lisp(self):
+        return [self.name, self.value.to_lisp()]
 
 
 class ELet(Expression):
@@ -252,6 +302,13 @@ class ELet(Expression):
             o.bindings == self.bindings and
             o.inner == self.inner
         )
+
+    def to_lisp(self):
+        bindings = [b.to_lisp() for b in self.bindings]
+        lisp = ['let', bindings, self.inner.to_lisp()]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
 
     def get_type(self) -> Type:
         return self.t
@@ -279,6 +336,12 @@ class EIf(Expression):
             o.else_case == self.else_case
         )
 
+    def to_lisp(self):
+        lisp = ['if', self.test.to_lisp(), self.if_case.to_lisp(), self.else_case.to_lisp()]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
+
     def get_type(self) -> Type:
         return self.t
 
@@ -303,6 +366,12 @@ class ELambda(Expression):
             o.arg_names == self.arg_names and
             o.body == self.body
         )
+
+    def to_lisp(self):
+        lisp = ['\\', self.arg_names, self.body.to_lisp()]
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
 
     def get_type(self) -> Type:
         return self.t
@@ -335,6 +404,13 @@ class DFunction(Declaration):
             o.body == self.body
         )
 
+    def to_lisp(self):
+        lisp = ['fn', self.name, self.arg_names]
+        if self.t is not None:
+            lisp.append(self.t.to_lisp())
+        lisp.append(self.body.to_lisp())
+        return lisp
+
 
 class MethodDecl:
     def __init__(self, method_name: str, qual_type: Qualified):
@@ -353,6 +429,9 @@ class MethodDecl:
             o.method_name == self.method_name and
             o.qual_type == self.qual_type
         )
+
+    def to_lisp(self):
+        return ['::', self.method_name, self.qual_type.to_lisp()]
 
     def get_type(self):
         return self.qual_type.t
@@ -391,6 +470,14 @@ class ClassDef:
             o.methods == self.methods
         )
 
+    def to_lisp(self):
+        lisp = ['class', [self.tclass.to_lisp(), self.tvar.to_lisp()]]
+        if len(self.supers) > 0:
+            lisp.append('superclasses')
+            lisp.append([s.to_lisp() for s in self.supers])
+        lisp += [m.to_lisp() for m in self.methods]
+        return lisp
+
     def get_method(self, name):
         for method in self.methods:
             if method.name == name:
@@ -419,6 +506,11 @@ class InstanceDef:
             o.method_impls == self.method_impls
         )
 
+    def to_lisp(self):
+        lisp = ['instance', self.qual_pred.to_lisp()]
+        lisp += [m.to_lisp() for m in self.method_impls]
+        return lisp
+
     def get_class(self):
         pred = self.qual_pred.t
         return pred.tclass
@@ -434,3 +526,17 @@ class InstanceDef:
 def add_indent(text):
     indent = '  '
     return '\n'.join(indent + line for line in text.split('\n'))
+
+
+def add_type(lisp, t):
+    ''' Creates (:: value type) nodes '''
+    return ['::', lisp, t.to_lisp()]
+
+
+def render_lisp(lisp):
+    ''' converts e.g. ['f', '1'] back into "(f 1)" '''
+    if isinstance(lisp, str):
+        return lisp
+
+    inner = ' '.join(render_lisp(l) for l in lisp)
+    return f'({inner})'

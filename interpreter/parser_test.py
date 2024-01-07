@@ -25,21 +25,25 @@ class ParserTest(unittest.TestCase):
         result = _parse_expression('123')
         expected = syntax.ELiteral(syntax.LInt(123))
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parse_float(self):
         result = _parse_expression('45.1e2')
         expected = syntax.ELiteral(syntax.LFloat(45.1e2))
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_string(self):
         result = _parse_expression('"foo\\n\\""')
         expected = syntax.ELiteral(syntax.LString('foo\n"'))
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_variable(self):
         result = _parse_expression('+add')
         expected = syntax.EVariable(None, '+add')
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_let_binding(self):
         result = _parse_expression(_parse_lists('(let ((x 123) (y 456)) x)')[0])
@@ -52,11 +56,13 @@ class ParserTest(unittest.TestCase):
             syntax.EVariable(None, 'x')
         )
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_type_variable(self):
         result = _parse_type(_parse_lists('a')[0])
         expected = types.TVariable.from_varname('a')
         self.assertEqual(expected, result)
+        self.roundtrip_type(expected)
 
     def test_parses_type(self):
         result = _parse_type(_parse_lists('(List (Pair a a))')[0])
@@ -73,11 +79,13 @@ class ParserTest(unittest.TestCase):
              ]
         )
         self.assertEqual(expected, result)
+        self.roundtrip_type(expected)
 
     def test_parses_typed_expression(self):
         result = _parse_expression(_parse_lists('(:: x String)')[0])
         expected = syntax.EVariable(types.TConstructor('String'), 'x')
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_if_expression(self):
         result = _parse_expression(_parse_lists('(if x y z)')[0])
@@ -88,6 +96,7 @@ class ParserTest(unittest.TestCase):
             syntax.EVariable(None, 'z'),
         )
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_new_expression(self):
         result = _parse_expression(_parse_lists('(new Link value next)')[0])
@@ -96,6 +105,7 @@ class ParserTest(unittest.TestCase):
             syntax.EVariable(None, 'next'),
         ])
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_access(self):
         result = _parse_expression(_parse_lists('(. some_struct some_field)')[0])
@@ -105,6 +115,7 @@ class ParserTest(unittest.TestCase):
             'some_field'
         )
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_lambda(self):
         result = _parse_expression(_parse_lists('(\ (a b) a)')[0])
@@ -114,11 +125,13 @@ class ParserTest(unittest.TestCase):
             syntax.EVariable(None, 'a')
         )
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_call_no_args(self):
         result = _parse_expression(_parse_lists('(exit)')[0])
         expected = syntax.ECall(None, syntax.EVariable(None, 'exit'), [])
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_call_with_args(self):
         result = _parse_expression(_parse_lists('(+ 1 2)')[0])
@@ -131,6 +144,7 @@ class ParserTest(unittest.TestCase):
             ]
         )
         self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
 
     def test_parses_predicated_type(self):
         text = '(=> ((Show a) (Eq a)) (List a))'
@@ -152,6 +166,7 @@ class ParserTest(unittest.TestCase):
             )
         )
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_qualified_type)
 
     def test_parses_function_declaration(self):
         text = '''
@@ -180,6 +195,7 @@ class ParserTest(unittest.TestCase):
             )
         )
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_function_declaration)
 
     def test_parses_realistic_function(self):
         ''' This function example is only realistic while this doesn't
@@ -217,6 +233,7 @@ class ParserTest(unittest.TestCase):
             )
         )
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_function_declaration)
 
     def test_parses_class_definition(self):
         text = '''
@@ -263,6 +280,7 @@ class ParserTest(unittest.TestCase):
         )
 
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_class_definition)
 
     def test_parses_class_definition_with_supers(self):
         text = '''
@@ -274,7 +292,7 @@ class ParserTest(unittest.TestCase):
         a = types.TVariable.from_varname('a')
         expected = syntax.ClassDef(
             types.TClass('Ord'),
-            ['Eq'],
+            [types.TClass('Eq')],
             a.type_variable,
             [
                 syntax.MethodDecl(
@@ -291,6 +309,7 @@ class ParserTest(unittest.TestCase):
         )
 
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_class_definition)
 
 
     def test_parses_instance_definition(self):
@@ -329,6 +348,7 @@ class ParserTest(unittest.TestCase):
         )
 
         self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_instance_definition)
 
     def test_parse(self):
         text = '''
@@ -413,6 +433,25 @@ class ParserTest(unittest.TestCase):
         )
 
         self.assertEqual(expected, result)
+
+
+    def roundtrip_expression(self, expression):
+        self._roundtrip(expression, _parse_expression)
+
+    def roundtrip_type(self, t):
+        self._roundtrip(t, _parse_type)
+
+    def _roundtrip(self, value, parser):
+        lisp = value.to_lisp()
+        parsed_from_lisp = parser(lisp)
+        self.assertEqual(value, parsed_from_lisp)
+
+        text = syntax.render_lisp(lisp)
+        parsed_lisp = _parse_lists(text)[0]
+        self.assertEqual(lisp, parsed_lisp)
+
+        parsed_from_text = parser(parsed_lisp)
+        self.assertEqual(value, parsed_from_text)
 
 
 if __name__ == '__main__':
