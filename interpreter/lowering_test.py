@@ -194,43 +194,15 @@ class TestLowering(unittest.TestCase):
         lowering_input = make_lowering_input(text)
         result = lowering_input.lower()
 
-        t = types.TVariable.from_varname('t')
-        string_t = types.TConstructor('String')
-        dict_type = types.TApplication(types.TConstructor('ShowMethods'), [t])
-        show_a_type = types.make_function_type([dict_type, t], string_t)
-
-        body = syntax.ECall(
-            string_t,
-            syntax.EAccess(
-                types.make_function_type([t], string_t),
-                 syntax.EVariable(types.TConstructor('ShowMethods'), 'dict_Show_t'),
-                'show'
-            ),
-            [syntax.EVariable(t, 'a')]
+        expected = parse_output(
+          '''
+          (fn show_a (dict_Show_t a)
+            (Fn (ShowMethods t) t String)
+            (:: ((:: (. (:: dict_Show_t ShowMethods) show) (Fn t String)) (:: a t)) String))
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+'''
         )
-
-        show_a = syntax.DFunction(
-            'show_a',
-            show_a_type,
-            ['dict_Show_t', 'a'],
-            body
-        )
-
-        show_type = types.make_function_type(
-            [types.TVariable.from_varname('s')],
-            types.TConstructor('String')
-        )
-        show_dictionary = syntax.StructDef(
-            'ShowMethods',
-            [types.TypeVariable('s')],
-            [('show', show_type)]
-        )
-
-        expected = lowering.LoweringOutput(
-            declarations=[show_a],
-            dictionaries=[show_dictionary]
-        )
-
         self.assertEqual(expected, result)
 
     # TODO: Test lowering functions
@@ -242,6 +214,36 @@ class TestLowering(unittest.TestCase):
     # - one where a method has additional predicates
     # - one where an instance has predicates (that are used in the definition)
     # - one where a method references the superclass of the current instance's class
+
+
+def parse_output(text):
+    ''' Parse a LoweringOutput.
+
+    This allows expressing the expected output as program text.
+
+    This should be the reverse of running print_result.
+    '''
+    lists = parser._parse_lists(text)
+
+    declarations = []
+    dictionaries = []
+
+    for sexpr in lists:
+        if sexpr[0] == 'fn':
+            fn = parser._parse_function_declaration(sexpr)
+            assert(fn.t.predicates == [])
+            # Remove the predicates from the function's type
+            fn.t = fn.t.unqualify()
+            declarations.append(fn)
+        else:
+            assert(sexpr[0] == 'struct')
+            struct = parser._parse_struct_definition(sexpr)
+            dictionaries.append(struct)
+
+    return lowering.LoweringOutput(
+        declarations=declarations,
+        dictionaries=dictionaries
+    )
 
 
 def print_diff(expected, result):
