@@ -21,3 +21,9 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 - Idea: Add a type check pass after the lowering is done to sanity-check the output?
 - Idea: Add a way to convert syntax/types back to s-expressions for the sake of nice output. This
   could also be part of the parser test - the output should be the same as the input s-expressions.
+
+
+Some cleanup I want to do at some point:
+
+- Rip out the `__str__` code on all the syntax classes and replace it with just
+  `render_lisp(self.to_lisp())`.
