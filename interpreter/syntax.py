@@ -107,7 +107,7 @@ class EVariable(Expression):
         return self.name
 
     def __repr__(self):
-        return f'EVariable({repr(self.name)})'
+        return f'EVariable({repr(self.t)}, {repr(self.name)})'
 
     def __eq__(self, o):
         return isinstance(o, EVariable) and o.t == self.t and o.name == self.name
@@ -137,7 +137,7 @@ class ECall(Expression):
         return f'({self.f_expr}{joined_args})'
 
     def __repr__(self):
-        return f'ECall({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+        return f'ECall({repr(self.t)}, {repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
     def __eq__(self, o):
         return (
@@ -174,7 +174,7 @@ class EConstruct(Expression):
         return f'({self.struct_name}{joined_args})'
 
     def __repr__(self):
-        return f'EConstruct({repr(self.struct_name)}, {repr(self.arg_exprs)})'
+        return f'EConstruct({repr(self.t)}, {repr(self.struct_name)}, {repr(self.arg_exprs)})'
 
     def __eq__(self, o):
         return (
@@ -211,7 +211,7 @@ class EPartial(Expression):
         return f'(*apply* {self.f_expr}{joined_args})'
 
     def __repr__(self):
-        return f'EPartial({repr(self.f_expr)}, {repr(self.arg_exprs)})'
+        return f'EPartial({repr(self.t)}, {repr(self.f_expr)}, {repr(self.arg_exprs)})'
 
     def __eq__(self, o):
         return (
@@ -293,7 +293,7 @@ class ELet(Expression):
         return f'let {binds} in {self.inner}'
 
     def __repr__(self):
-        return f'ELet({repr(self.bindings)}, {repr(self.inner)})'
+        return f'ELet({repr(self.t)}, {repr(self.bindings)}, {repr(self.inner)})'
 
     def __eq__(self, o):
         return (
@@ -357,7 +357,7 @@ class ELambda(Expression):
         return f'(\ {args} -> {self.body})'
 
     def __repr__(self):
-        return f'ELambda({repr(self.arg_names)}, {repr(self.body)})'
+        return f'ELambda({repr(self.t)}, {repr(self.arg_names)}, {repr(self.body)})'
 
     def __eq__(self, o):
         return (

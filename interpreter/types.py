@@ -202,6 +202,12 @@ class Substitution:
     def __repr__(self):
         return f'Substitution({repr(self.substitutions)})'
 
+    def __contains__(self, key):
+        return key in self.substitutions
+
+    def __getitem__(self, key):
+        return self.substitutions[key]
+
     @classmethod
     def singleton(cls, type_variable: TypeVariable, replacement: Type):
         return Substitution({type_variable: replacement})

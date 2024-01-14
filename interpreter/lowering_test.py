@@ -179,9 +179,61 @@ class TestLowering(unittest.TestCase):
 
         self.assertEqual(expected, result)
 
+    def test_looks_up_dictionaries_from_arguments(self):
+        # This depends on having the definition of the class to know that
+        # `show` comes from it.
+        text = '''
+          (fn show_a (a)
+              (=> ((Show t)) (Fn t String))
+           (:: ((:: show (Fn t String)) (:: a t)) String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+'''
+
+        lowering_input = make_lowering_input(text)
+        result = lowering_input.lower()
+
+        t = types.TVariable.from_varname('t')
+        string_t = types.TConstructor('String')
+        dict_type = types.TApplication(types.TConstructor('ShowMethods'), [t])
+        show_a_type = types.make_function_type([dict_type, t], string_t)
+
+        body = syntax.ECall(
+            string_t,
+            syntax.EAccess(
+                types.make_function_type([t], string_t),
+                 syntax.EVariable(types.TConstructor('ShowMethods'), 'dict_Show_t'),
+                'show'
+            ),
+            [syntax.EVariable(t, 'a')]
+        )
+
+        show_a = syntax.DFunction(
+            'show_a',
+            show_a_type,
+            ['dict_Show_t', 'a'],
+            body
+        )
+
+        show_type = types.make_function_type(
+            [types.TVariable.from_varname('s')],
+            types.TConstructor('String')
+        )
+        show_dictionary = lowering.Dictionary(
+            'ShowMethods',
+            ['s'],
+            [('show', show_type)]
+        )
+
+        expected = lowering.LoweringOutput(
+            declarations=[show_a],
+            dictionaries=[show_dictionary]
+        )
+
+        self.assertEqual(expected, result)
 
     # TODO: Test lowering functions
-    # - looking up dictionaries in arguments
     # - looking up dictionaries that are the parents of arguments
     # - looking up instances for concrete types
 
@@ -193,9 +245,14 @@ class TestLowering(unittest.TestCase):
 
 
 def print_diff(expected, result):
-    print(syntax.render_lisp(expected.to_lisp()))
+    print_result(expected)
     print('---')
-    print(syntax.render_lisp(result.to_lisp()))
+    print_result(result)
+
+
+def print_result(result):
+    for lisp in result.to_lisp():
+        print(syntax.render_lisp(lisp))
 
 
 def make_lowering_input(text):
