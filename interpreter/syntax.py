@@ -523,6 +523,41 @@ class InstanceDef:
         return self.qual_pred.predicates
 
 
+class StructDef:
+    def __init__(self, name: str, type_vars: list, fields: list):
+        '''
+        type_vars: list[TypeVariable]
+        fields: list[tuple[str, Type]]
+        '''
+        self.name = name
+        self.type_vars = type_vars
+        self.fields = fields
+
+    def __str__(self):
+        return render_lisp(self.to_lisp())
+
+    def __repr__(self):
+        return f'StructDef({repr(self.name)}, {repr(self.type_vars)}, {repr(self.fields)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, StructDef) and
+            o.name == self.name and
+            o.type_vars == self.type_vars and
+            o.fields == self.fields
+        )
+
+    def to_lisp(self):
+        if len(self.type_vars) == 0:
+            name_part = self.name
+        else:
+            name_part = [self.name] + [str(tv) for tv in self.type_vars]
+        lisp = ['struct', name_part]
+        for (name, t) in self.fields:
+            lisp.append(add_type(name, t))
+        return lisp
+
+
 def add_indent(text):
     indent = '  '
     return '\n'.join(indent + line for line in text.split('\n'))

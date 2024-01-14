@@ -10,6 +10,7 @@ from interpreter.parser import (
     _parse_instance_definition,
     _parse_lists,
     _parse_qualified_type,
+    _parse_struct_definition,
     _parse_type,
     parse,
 )
@@ -350,6 +351,43 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(expected, result)
         self._roundtrip(expected, _parse_instance_definition)
 
+    def test_parses_simple_struct(self):
+        text = '''(struct Name (:: first String) (:: last String))'''
+
+        result = _parse_struct_definition(_parse_lists(text)[0])
+
+        t_string = types.TConstructor('String')
+        fields = [
+            ('first', t_string),
+            ('last', t_string),
+        ]
+        expected = syntax.StructDef('Name', [], fields)
+
+        self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_struct_definition)
+
+    def test_parses_struct_with_type_variables(self):
+        text = '''
+            (struct (Reversible a b)
+              (:: to (Fn a b))
+              (:: from (Fn b a)))
+'''
+
+        result = _parse_struct_definition(_parse_lists(text)[0])
+
+        a = types.TVariable.from_varname('a')
+        b = types.TVariable.from_varname('b')
+        tvs = [a.type_variable, b.type_variable]
+        fields = [
+            ('to', types.make_function_type([a], b)),
+            ('from', types.make_function_type([b], a)),
+        ]
+        expected = syntax.StructDef('Reversible', tvs, fields)
+
+        self.assertEqual(expected, result)
+        self._roundtrip(expected, _parse_struct_definition)
+
+
     def test_parse(self):
         text = '''
 (class (Steppable a)
@@ -361,6 +399,10 @@ class ParserTest(unittest.TestCase):
 (fn step_all (xs)
   (=> ((Steppable a)) (Fn (List a) (List a)))
   (map step xs))
+
+(struct (Pair a)
+  (:: x a)
+  (:: y a))
 '''
         result = parse(text)
 
@@ -425,9 +467,18 @@ class ParserTest(unittest.TestCase):
             ]
         )
 
+        pair_struct = syntax.StructDef(
+            'Pair',
+            [types.TypeVariable('a')],
+            [
+                ('x', types.TVariable.from_varname('a')),
+                ('y', types.TVariable.from_varname('a')),
+            ]
+        )
 
         expected = ParseResult(
             functions=[step_all],
+            structs=[pair_struct],
             classes=[steppable],
             instances=[step_int],
         )

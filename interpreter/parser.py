@@ -7,8 +7,9 @@ from interpreter import types
 
 
 class ParseResult:
-    def __init__(self, functions, classes, instances):
+    def __init__(self, functions, structs, classes, instances):
         self.functions = functions
+        self.structs = structs
         self.classes = classes
         self.instances = instances
 
@@ -16,15 +17,32 @@ class ParseResult:
         return (
             isinstance(o, ParseResult) and
             o.functions == self.functions and
+            o.structs == self.structs and
             o.classes == self.classes and
             o.instances == self.instances
         )
+
+    def __str__(self):
+        lines = []
+        lines.extend(str(f) for f in self.functions)
+        lines.extend(str(s) for s in self.structs)
+        lines.extend(str(c) for c in self.classes)
+        lines.extend(str(i) for i in self.instances)
+        return '\n'.join(lines)
+
+    def __repr__(self):
+        f = repr(self.functions)
+        s = repr(self.structs)
+        c = repr(self.classes)
+        i = repr(self.instances)
+        return f'ParseResult({f}, {s}, {c}, {i})'
 
 
 def parse(text: str) -> ParseResult:
     s_expressions = _parse_lists(text)
 
     functions = []
+    structs = []
     classes = []
     instances = []
 
@@ -36,8 +54,10 @@ def parse(text: str) -> ParseResult:
             classes.append(parsed)
         elif isinstance(parsed, syntax.DFunction):
             functions.append(parsed)
+        elif isinstance(parsed, syntax.StructDef):
+            structs.append(parsed)
 
-    return ParseResult(functions, classes, instances)
+    return ParseResult(functions, structs, classes, instances)
 
 
 def _parse_top_level(sexpr):
@@ -51,6 +71,8 @@ def _parse_top_level(sexpr):
             return _parse_class_definition(sexpr)
         elif first == 'fn':
             return _parse_function_declaration(sexpr)
+        elif first == 'struct':
+            return _parse_struct_definition(sexpr)
 
     raise RuntimeError(f'Unexpected expression at the top level: {sexpr}')
 
@@ -388,6 +410,46 @@ def _parse_let_bindings(sexprs):
         binding = syntax.Binding(name, value)
         bindings.append(binding)
     return bindings
+
+def _parse_struct_definition(sexpr):
+    ''' Parses struct definitions.
+
+    Examples:
+    (struct Name (:: first String) (:: last String))
+    (struct (Pair a) (:: x a) (:: y a))
+    (struct Void)
+    '''
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) >= 2)
+
+    name_part = sexpr[1]
+    if isinstance(name_part, list):
+        name = name_part[0]
+        tvs = [types.TypeVariable(x) for x in name_part[1:]]
+    else:
+        name = name_part
+        tvs = []
+
+    fields = [_parse_field(field) for field in sexpr[2:]]
+
+    return syntax.StructDef(name, tvs, fields)
+
+
+def _parse_field(sexpr):
+    ''' Parses a struct field
+
+    Example: (:: year Int)
+    '''
+    assert(isinstance(sexpr, list))
+    assert(len(sexpr) == 3)
+    assert(sexpr[0] == '::')
+
+    name = sexpr[1]
+    assert(isinstance(name, str))
+
+    t = _parse_type(sexpr[2])
+
+    return (name, t)
 
 
 def _parse_lists(text: str) -> list:
