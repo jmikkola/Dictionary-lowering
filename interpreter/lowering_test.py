@@ -95,15 +95,47 @@ class TestLowering(unittest.TestCase):
         output_text = '''
           (fn show_a (dict_Show_t a)
             (Fn (ShowMethods t) t String)
-            (:: ((:: (. (:: dict_Show_t ShowMethods) show) (Fn t String)) (:: a t)) String))
+            (:: ((:: (. (:: dict_Show_t (ShowMethods t)) show) (Fn t String)) (:: a t)) String))
           (struct (ShowMethods s)
             (:: show (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
 
+    def test_looks_up_parent_of_argument(self):
+        input_text = '''
+(fn takes_child (xc)
+    (=> ((Child t)) (Fn t Int))
+    (:: ((:: parent (Fn t Int)) (:: xc t)) Int))
+
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c) superclasses (Parent)
+  (:: child (Fn c String)))
+'''
+
+        output_text = '''
+(fn takes_child (dict_Child_t xc)
+  (Fn (ChildMethods t) t Int)
+  (::
+    ((::
+      (. (:: (. (:: dict_Child_t (ChildMethods t)) superParent) (ParentMethods t)) parent)
+      (Fn t Int))
+     (:: xc t))
+    Int))
+
+(struct (ParentMethods p)
+  (:: parent (Fn p Int)))
+
+(struct (ChildMethods c)
+  (:: superParent (ParentMethods c))
+  (:: child (Fn c String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
     # TODO: Test lowering functions
-    # - looking up dictionaries that are the parents of arguments
     # - looking up instances for concrete types
 
 

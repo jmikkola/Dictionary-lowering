@@ -345,7 +345,7 @@ class LoweringInput:
 
         # Get the dictionaries for those predicates
         for pred in predicates:
-            dictionary = context.lookup_dictionary(pred)
+            dictionary = context.lookup_dictionary_all(pred)
             dictionary_args.append(dictionary)
 
         expr_type = expression.get_type()
@@ -565,7 +565,10 @@ class Context:
         # See if either it's possible to use one directly or get a superclass from it.
         for (in_scope_p, name) in predicates_in_scope:
             # Create an expression for the current dictionary's variable
-            typ = TConstructor(_class_to_dictionary_name(predicate.tclass))
+            typ = TApplication(
+                TConstructor(_class_to_dictionary_name(in_scope_p.tclass)),
+                [in_scope_p.t]
+            )
             expr = EVariable(typ, name)
 
             if in_scope_p == predicate:
@@ -588,7 +591,7 @@ class Context:
             super_pred = Predicate(super_class, in_scope_p.t)
 
             dictionary_name = _class_to_dictionary_name(super_class)
-            t = TApplication(TConstructor(dictionary_name), predicate.t)
+            t = TApplication(TConstructor(dictionary_name), [predicate.t])
 
             field_name = _to_super_field_name(super_class)
 
