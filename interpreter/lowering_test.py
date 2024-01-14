@@ -135,9 +135,35 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
-    # TODO: Test lowering functions
-    # - looking up instances for concrete types
+    def test_lowering_class_use_for_concrete_type(self):
+        input_text = '''
+          (fn show_an_int ()
+            (Fn String)
+            (:: ((:: show (Fn Int String)) 12345) String))
 
+          (class (Show a)
+            (:: show (Fn a String)))
+
+          (instance (Show Int)
+            (fn show (i) "TODO"))
+ '''
+
+        output_text = '''
+(fn make__ShowMethods__Int ()
+  (Fn (ShowMethods Int))
+  (:: (new ShowMethods
+        (:: (\ (i) "TODO") (Fn Int String)))
+  (ShowMethods Int)))
+
+(fn show_an_int ()
+  (Fn String)
+  (:: ((:: (. (:: ((:: make__ShowMethods__Int (Fn ShowMethods))) ShowMethods) show) (Fn Int String)) 12345) String))
+
+(struct (ShowMethods a)
+  (:: show (Fn a String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
 
     # TODO: Test creating instance functions
     # - one where a method has additional predicates
