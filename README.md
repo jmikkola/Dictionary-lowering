@@ -29,3 +29,6 @@ Some cleanup I want to do at some point:
   `render_lisp(self.to_lisp())`.
 - Rename `scope` and `locals` in the lowering context because those names (escpecially locals) are
   confusing.
+- Create a function to nicely format the output (maybe not a full pretty-print algorithm that
+  handles a target line length, just simple logic that breaks common things like if statements into
+  multiple lines).

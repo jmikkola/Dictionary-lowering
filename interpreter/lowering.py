@@ -179,7 +179,7 @@ class LoweringInput:
         dictionary_type_name = _class_to_dictionary_name(tclass)
         struct_type = TApplication(
             TConstructor(dictionary_type_name),
-            inst_t
+            [inst_t]
         )
         function_type = make_function_type(arg_types, struct_type)
 

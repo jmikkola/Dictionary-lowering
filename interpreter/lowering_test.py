@@ -102,6 +102,40 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
+    # TODO: Test lowering functions
+    # - looking up dictionaries that are the parents of arguments
+    # - looking up instances for concrete types
+
+
+    # TODO: Test creating instance functions
+    # - one where a method has additional predicates
+    # - one where an instance has predicates (that are used in the definition)
+    # - one where a method references the superclass of the current instance's class
+
+    def test_simple_instance_function(self):
+        input_text = '''
+          (class (Show a)
+            (:: show (Fn a String)))
+
+          (instance (Show Int)
+            (fn show (i)
+              "TODO"))
+'''
+
+        output_text = '''
+          (fn make__ShowMethods__Int ()
+            (Fn (ShowMethods Int))
+            (:: (new ShowMethods
+                  (:: (\ (i) "TODO") (Fn Int String)))
+                (ShowMethods Int)))
+
+          (struct (ShowMethods a)
+            (:: show (Fn a String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
         expected = parse_output(output_text)
@@ -113,16 +147,6 @@ class TestLowering(unittest.TestCase):
 
         self.assertEqual(expected, result)
 
-
-    # TODO: Test lowering functions
-    # - looking up dictionaries that are the parents of arguments
-    # - looking up instances for concrete types
-
-    # TODO: Test creating instance functions
-    # - basic test case
-    # - one where a method has additional predicates
-    # - one where an instance has predicates (that are used in the definition)
-    # - one where a method references the superclass of the current instance's class
 
 
 def parse_output(text):

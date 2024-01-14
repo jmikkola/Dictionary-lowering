@@ -480,7 +480,7 @@ class ClassDef:
 
     def get_method(self, name):
         for method in self.methods:
-            if method.name == name:
+            if method.method_name == name:
                 return method
         raise RuntimeError(f'could not find method by name: {name}')
 
