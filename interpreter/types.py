@@ -187,6 +187,9 @@ class Qualified:
             self.t.apply(substitution)
         )
 
+    def unqualify(self):
+        return self.t
+
 
 class Substitution:
     # dict[TyVar, Type]
@@ -256,3 +259,10 @@ def make_function_type(arg_types: list, return_type: Type) -> Type:
         TConstructor('Fn'),
         arg_types + [return_type]
     )
+
+
+def require_function_type(t: Type):
+    ''' asserts T is a function type, then returns (args, return) '''
+    assert(isinstance(t, TApplication))
+    assert(t.t == TConstructor('Fn'))
+    return (t.args[:-1], t.args[-1])

@@ -31,7 +31,7 @@ from interpreter.types import (
     Qualified, Type, Substitution, TClass, TypeError,
     Predicate, TConstructor, TApplication, TVariable,
     TypeVariable,
-    match, make_function_type,
+    match, make_function_type, require_function_type,
 )
 
 
@@ -355,12 +355,19 @@ class LoweringInput:
             dictionary = context.lookup_dictionary(pred)
             dictionary_args.append(dictionary)
 
-        # Create a new type for `expression`, now that it takes arguments:
-        called_type = make_function_type(
-            arg_types=[arg.get_type() for arg in dictionary_args],
-            return_type=expression.get_type()
-        )
-        variable = EVariable(called_type, expression.name)
+        expr_type = expression.get_type()
+        if predicates:
+            expr_arg_types, expr_return_type = require_function_type(expr_type)
+            # Create a new type for `expression` now that predicates are passed
+            # as additional args
+            predicate_arg_types = [arg.get_type() for arg in dictionary_args]
+            arg_types = predicate_arg_types + expr_arg_types
+            result_type = make_function_type(arg_types, expr_return_type)
+        else:
+            # No predicates means no change to the type is needed
+            result_type = expr_type
+
+        variable = EVariable(result_type, expression.name)
 
         return EPartial(expression.get_type(), variable, dictionary_args)
 

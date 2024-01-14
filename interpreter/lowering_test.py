@@ -2,14 +2,14 @@ import unittest
 
 from interpreter import lowering
 from interpreter import parser
+from interpreter import syntax
 from interpreter import types
-from interpreter.syntax import render_lisp
 
 '''
 Example of pretty-printing the results:
 
         for lisp in result.to_lisp():
-            print(render_lisp(lisp))
+            print(syntax.render_lisp(lisp))
 '''
 
 
@@ -122,6 +122,37 @@ class TestLowering(unittest.TestCase):
 
         self.assertEqual(expected, result)
 
+    def test_lowering_simple_function(self):
+        text = '''
+      (fn some_fn (a)
+         (Fn Int Int)
+         (::
+            ((:: some_fn (Fn Int Int))
+             (:: a Int))
+          Int))
+'''
+        # I didn't say the function would work!
+
+        lowering_input = make_lowering_input(text)
+        result = lowering_input.lower()
+
+        some_fn = lowering_input.declarations[0]
+
+        # The output is almost the same, just with an unqualified type
+        updated_fn = syntax.DFunction(
+            name=some_fn.name,
+            t=some_fn.t.unqualify(),
+            arg_names=some_fn.arg_names,
+            body=some_fn.body,
+        )
+
+        expected = lowering.LoweringOutput(
+            declarations=[updated_fn],
+            dictionaries=[]
+        )
+
+        self.assertEqual(expected, result)
+
     # TODO: Test lowering functions
     # - adding arguments to functions
     # - looking up dictionaries in arguments
@@ -133,6 +164,12 @@ class TestLowering(unittest.TestCase):
     # - one where a method has additional predicates
     # - one where an instance has predicates (that are used in the definition)
     # - one where a method references the superclass of the current instance's class
+
+
+def print_diff(expected, result):
+    print(syntax.render_lisp(expected.to_lisp()))
+    print('---')
+    print(syntax.render_lisp(result.to_lisp()))
 
 
 def make_lowering_input(text):

@@ -27,3 +27,5 @@ Some cleanup I want to do at some point:
 
 - Rip out the `__str__` code on all the syntax classes and replace it with just
   `render_lisp(self.to_lisp())`.
+- Rename `scope` and `locals` in the lowering context because those names (escpecially locals) are
+  confusing.
