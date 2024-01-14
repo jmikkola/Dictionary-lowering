@@ -3,6 +3,14 @@ import unittest
 from interpreter import lowering
 from interpreter import parser
 from interpreter import types
+from interpreter.syntax import render_lisp
+
+'''
+Example of pretty-printing the results:
+
+        for lisp in result.to_lisp():
+            print(render_lisp(lisp))
+'''
 
 
 class TestLowering(unittest.TestCase):

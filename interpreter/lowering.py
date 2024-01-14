@@ -20,7 +20,7 @@ This package assumes a few things about the input code:
 
 
 from interpreter.syntax import (
-    Declaration, DFunction, ClassDef, InstanceDef,
+    Declaration, DFunction, ClassDef, InstanceDef, StructDef,
     Expression,
     ELambda, ELiteral, ECall, EConstruct, EIf,
     EPartial, ELet, ELambda, Binding, EVariable,
@@ -30,6 +30,7 @@ from interpreter.syntax import (
 from interpreter.types import (
     Qualified, Type, Substitution, TClass, TypeError,
     Predicate, TConstructor, TApplication, TVariable,
+    TypeVariable,
     match, make_function_type,
 )
 
@@ -403,6 +404,12 @@ class LoweringOutput:
     def __repr__(self):
         return f'LoweringOutput({repr(self.declarations)}, {repr(self.dictionaries)})'
 
+    def to_lisp(self):
+        lisp = [d.to_lisp() for d in self.declarations]
+        structs = [d.to_struct() for d in self.dictionaries]
+        lisp += [s.to_lisp() for s in structs]
+        return lisp
+
 
 class Dictionary:
     ''' Represents the struct used to pass class methods around '''
@@ -437,6 +444,10 @@ class Dictionary:
 
     def __repr__(self):
         return f'Dictionary({repr(self.name)}, {repr(self.type_vars)}, {repr(self.fields)})'
+
+    def to_struct(self):
+        tvs = [TypeVariable(s) for s in self.type_vars]
+        return StructDef(self.name, tvs, self.fields)
 
 
 class Method:
