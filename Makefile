@@ -1,4 +1,4 @@
-.PHONY: all test check TAGS pylint
+.PHONY: all test check TAGS pylint coverage installdeps
 
 
 all: check test TAGS
@@ -14,3 +14,9 @@ TAGS:
 
 pylint:
 	pylint -E interpreter/
+
+coverage:
+	coverage run -m unittest discover  -s interpreter -p '*_test.py' && coverage html
+
+installdeps:
+	python3 -m pip install coverage mypy pylint
