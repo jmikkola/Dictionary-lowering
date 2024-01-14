@@ -153,8 +153,34 @@ class TestLowering(unittest.TestCase):
 
         self.assertEqual(expected, result)
 
+    def test_add_args_to_function(self):
+        text = '''
+          (fn show_a (a)
+              (=> ((Show t)) (Fn t String))
+           "TODO")
+'''
+
+        lowering_input = make_lowering_input(text)
+        result = lowering_input.lower()
+
+        t = types.TVariable.from_varname('t')
+        dict_type = types.TApplication(types.TConstructor('ShowMethods'), [t])
+        show_a_type = types.make_function_type([dict_type, t], types.TConstructor('String'))
+        show_a = syntax.DFunction(
+            'show_a',
+            show_a_type,
+            ['dict_Show_t', 'a'],
+            syntax.ELiteral(syntax.LString('TODO'))
+        )
+        expected = lowering.LoweringOutput(
+            declarations=[show_a],
+            dictionaries=[]
+        )
+
+        self.assertEqual(expected, result)
+
+
     # TODO: Test lowering functions
-    # - adding arguments to functions
     # - looking up dictionaries in arguments
     # - looking up dictionaries that are the parents of arguments
     # - looking up instances for concrete types
