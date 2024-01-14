@@ -86,24 +86,17 @@ class LoweringInput:
 
         fields = super_fields + method_fields
 
-        type_variables = set()
-        for method in class_def.methods:
-            method_type = method.get_type()
-            type_variables |= method_type.free_type_vars()
-
         # I'm not convinced yet that it's actually necessary to keep the other
         # type variables.
         # If they are kept, it becomes a challenge to ensure they are used in
         # the right order.
+        # type_variables = set()
+        # for method in class_def.methods:
+        #     method_type = method.get_type()
+        #     type_variables |= method_type.free_type_vars()
 
-        # type_variable_strings = [str(tv) for tv in type_variables]
-        type_variable_strings = [str(tv)]
 
-        return Dictionary(
-            dictionary_name,
-            type_variable_strings,
-            fields
-        )
+        return StructDef(dictionary_name, [tv.type_variable], fields)
 
     def _to_super_field(self, tclass, tv):
         # Prefix the field's name with 'super' to note the fact that this
@@ -393,7 +386,7 @@ class LoweringInput:
 class LoweringOutput:
     ''' The output of the lowering pass '''
 
-    # declarations: list[Declaration], dictionaries: list[Dictionary]
+    # declarations: list[Declaration], dictionaries: list[StructDef]
     def __init__(self, declarations: list, dictionaries: list):
         self.declarations = declarations
         self.dictionaries = dictionaries
@@ -413,48 +406,8 @@ class LoweringOutput:
 
     def to_lisp(self):
         lisp = [d.to_lisp() for d in self.declarations]
-        structs = [d.to_struct() for d in self.dictionaries]
-        lisp += [s.to_lisp() for s in structs]
+        lisp += [s.to_lisp() for s in self.dictionaries]
         return lisp
-
-
-class Dictionary:
-    ''' Represents the struct used to pass class methods around '''
-
-    # name: str, type_vars: list[str], fields: list[tuple[str, Type]]
-    def __init__(self, name: str, type_vars: list, fields: list):
-        ''' fields contains both methods and superclasses '''
-        self.name = name
-        self.type_vars = type_vars
-        self.fields = fields
-
-    def __str__(self):
-        tvs = ''
-        if len(self.type_vars) > 0:
-            tvs = '<' + ' '.join(str(tv) for tv in self.type_vars) + '>'
-
-        header = f'struct {self.name}{tvs} {{'
-        lines = [header]
-        for (name, t) in self.fields:
-            lines.append(f'  {name}: {type},')
-
-        lines.append('}')
-        return '\n'.join(lines)
-
-    def __eq__(self, o):
-        return (
-            isinstance(o, Dictionary) and
-            o.name == self.name and
-            o.type_vars == self.type_vars and
-            o.fields == self.fields
-        )
-
-    def __repr__(self):
-        return f'Dictionary({repr(self.name)}, {repr(self.type_vars)}, {repr(self.fields)})'
-
-    def to_struct(self):
-        tvs = [TypeVariable(s) for s in self.type_vars]
-        return StructDef(self.name, tvs, self.fields)
 
 
 class Method:

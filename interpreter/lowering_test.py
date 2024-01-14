@@ -27,9 +27,9 @@ class TestLowering(unittest.TestCase):
             [types.TVariable.from_varname('s')],
             types.TConstructor('String')
         )
-        show_dictionary = lowering.Dictionary(
+        show_dictionary = syntax.StructDef(
             'ShowMethods',
-            ['s'],
+            [types.TypeVariable('s')],
             [('show', show_type)]
         )
         expected = lowering.LoweringOutput(
@@ -61,9 +61,9 @@ class TestLowering(unittest.TestCase):
             [types.TVariable.from_varname('a')],
             types.TVariable.from_varname('a')
         )
-        my_class_dictionary = lowering.Dictionary(
+        my_class_dictionary = syntax.StructDef(
             'MyClassMethods',
-            ['a'],
+            [types.TypeVariable('a')],
             [
                 ("superOrd", super_ord_type),
                 ("superShow", super_show_type),
@@ -107,9 +107,9 @@ class TestLowering(unittest.TestCase):
         bool = types.TConstructor('Bool')
         elem_type = types.make_function_type(elem_args, bool)
 
-        foldable_dictionary = lowering.Dictionary(
+        foldable_dictionary = syntax.StructDef(
             'FoldableMethods',
-            ['t'],
+            [types.TypeVariable('t')],
             [
                 ('foldl', foldl_type),
                 ('elem', elem_type),
@@ -220,9 +220,9 @@ class TestLowering(unittest.TestCase):
             [types.TVariable.from_varname('s')],
             types.TConstructor('String')
         )
-        show_dictionary = lowering.Dictionary(
+        show_dictionary = syntax.StructDef(
             'ShowMethods',
-            ['s'],
+            [types.TypeVariable('s')],
             [('show', show_type)]
         )
 
