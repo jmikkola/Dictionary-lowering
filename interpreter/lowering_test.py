@@ -170,6 +170,8 @@ class TestLowering(unittest.TestCase):
     # - one where an instance has predicates (that are used in the definition)
     # - one where a method references the superclass of the current instance's class
 
+    # TODO: Test passing additional predicates when calling a class's function
+
     def test_simple_instance_function(self):
         input_text = '''
           (class (Show a)
@@ -204,7 +206,6 @@ class TestLowering(unittest.TestCase):
             print_diff(expected, result)
 
         self.assertEqual(expected, result)
-
 
 
 def parse_output(text):
