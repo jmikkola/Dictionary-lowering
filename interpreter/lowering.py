@@ -78,11 +78,8 @@ class LoweringInput:
             for super_class in class_def.supers
         ]
 
-        # Remove the qualification from the method types because classes don't
-        # exist in the output code. The actual implementations will also get
-        # lowered so that they don't need predicates.
         method_fields = [
-            (method_decl.method_name, method_decl.get_type())
+            (method_decl.method_name, self._predicates_to_arg_types(method_decl.qual_type))
             for method_decl in class_def.methods
         ]
 
@@ -93,7 +90,13 @@ class LoweringInput:
             method_type = method.get_type()
             type_variables |= method_type.free_type_vars()
 
-        type_variable_strings = [str(tv) for tv in type_variables]
+        # I'm not convinced yet that it's actually necessary to keep the other
+        # type variables.
+        # If they are kept, it becomes a challenge to ensure they are used in
+        # the right order.
+
+        # type_variable_strings = [str(tv) for tv in type_variables]
+        type_variable_strings = [str(tv)]
 
         return Dictionary(
             dictionary_name,
@@ -113,7 +116,7 @@ class LoweringInput:
         # This isn't concerned with what other classes a particular instance
         # might depend upon.
         dictionary_name = _class_to_dictionary_name(tclass)
-        t = TApplication(TConstructor(dictionary_name), TVariable(tv))
+        t = TApplication(TConstructor(dictionary_name), [tv])
         return (name, t)
 
     def _lower_function(self, context, declaration):
@@ -686,7 +689,7 @@ def _pred_type_to_arg_type(predicate):
     ''' Converts e.g. `(Show a) =>` to an argument type `ShowMethods<a>` '''
     return TApplication(
         TConstructor(_class_to_dictionary_name(predicate.tclass)),
-        predicate.t
+        [predicate.t]
     )
 
 

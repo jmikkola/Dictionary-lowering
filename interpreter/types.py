@@ -2,6 +2,7 @@
 
 class TypeVariable:
     def __init__(self, name: str):
+        assert(isinstance(name, str))
         self.name = name
 
     def __str__(self):
@@ -26,6 +27,7 @@ class Type:
 
 class TVariable(Type):
     def __init__(self, type_variable: TypeVariable):
+        assert(isinstance(type_variable, TypeVariable))
         self.type_variable = type_variable
 
     def __str__(self):
