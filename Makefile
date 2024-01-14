@@ -1,4 +1,4 @@
-.PHONY: all test check TAGS pylint coverage installdeps
+.PHONY: all test check TAGS pylint coverage installdeps watch
 
 
 all: check test TAGS
@@ -20,3 +20,6 @@ coverage:
 
 installdeps:
 	python3 -m pip install coverage mypy pylint
+
+watch:
+	./watch.sh
