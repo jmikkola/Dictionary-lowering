@@ -5,125 +5,51 @@ from interpreter import parser
 from interpreter import syntax
 from interpreter import types
 
-'''
-Example of pretty-printing the results:
-
-        for lisp in result.to_lisp():
-            print(syntax.render_lisp(lisp))
-'''
-
 
 class TestLowering(unittest.TestCase):
     def test_lowers_simple_class_definition(self):
-        text = '''
+        input_text = '''
 (class (Show s)
   (:: show (Fn s String)))
 '''
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
+        output_text = '''(struct (ShowMethods s) (:: show (Fn s String)))'''
 
-        show_type = types.make_function_type(
-            [types.TVariable.from_varname('s')],
-            types.TConstructor('String')
-        )
-        show_dictionary = syntax.StructDef(
-            'ShowMethods',
-            [types.TypeVariable('s')],
-            [('show', show_type)]
-        )
-        expected = lowering.LoweringOutput(
-            declarations=[],
-            dictionaries=[show_dictionary]
-        )
-
-        self.assertEqual(expected, result)
+        self.assert_lowers(input_text, output_text)
 
     def test_lowers_class_with_superclasses(self):
-        text = '''
+        input_text = '''
 (class (MyClass a)
     superclasses (Ord Show)
     (:: doThings (Fn a a)))
 '''
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
+        output_text = '''
+          (struct (MyClassMethods a)
+            (:: superOrd (OrdMethods a))
+            (:: superShow (ShowMethods a))
+            (:: doThings (Fn a a)))
+'''
 
-        super_ord_type = types.TApplication(
-            types.TConstructor("OrdMethods"),
-            [types.TVariable.from_varname('a')]
-        )
-        super_show_type = types.TApplication(
-            types.TConstructor("ShowMethods"),
-            [types.TVariable.from_varname('a')]
-        )
-        do_things_type = types.make_function_type(
-            [types.TVariable.from_varname('a')],
-            types.TVariable.from_varname('a')
-        )
-        my_class_dictionary = syntax.StructDef(
-            'MyClassMethods',
-            [types.TypeVariable('a')],
-            [
-                ("superOrd", super_ord_type),
-                ("superShow", super_show_type),
-                ('doThings', do_things_type),
-            ]
-        )
-        expected = lowering.LoweringOutput(
-            declarations=[],
-            dictionaries=[my_class_dictionary]
-        )
-
-        self.assertEqual(expected, result)
+        self.assert_lowers(input_text, output_text)
 
     def test_lowers_class_with_predicates_on_method(self):
-        text = '''
+        input_text = '''
       (class (Foldable t)
         (:: foldl (Fn (Fn b a b) b (t a) b))
         (:: elem (=> ((Eq a)) (Fn a (t a) Bool))))
 '''
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
+        output_text = '''
+          (struct (FoldableMethods t)
+            (:: foldl (Fn (Fn b a b) b (t a) b))
+            (:: elem (Fn (EqMethods a) a (t a) Bool)))
+'''
 
-        a = types.TVariable.from_varname('a')
-        b = types.TVariable.from_varname('b')
-        t = types.TVariable.from_varname('t')
-
-        foldl_args = [
-            types.make_function_type([b, a], b),
-            b,
-            types.TApplication(t, [a]),
-        ]
-        foldl_type = types.make_function_type(foldl_args, b)
-
-        elem_args = [
-            # First arg is to pass the Eq dictionary
-            types.TApplication(types.TConstructor('EqMethods'), [a]),
-            a,
-            types.TApplication(t, [a]),
-        ]
-        bool = types.TConstructor('Bool')
-        elem_type = types.make_function_type(elem_args, bool)
-
-        foldable_dictionary = syntax.StructDef(
-            'FoldableMethods',
-            [types.TypeVariable('t')],
-            [
-                ('foldl', foldl_type),
-                ('elem', elem_type),
-            ]
-        )
-        expected = lowering.LoweringOutput(
-            declarations=[],
-            dictionaries=[foldable_dictionary]
-        )
-
-        self.assertEqual(expected, result)
+        self.assert_lowers(input_text, output_text)
 
     def test_lowering_simple_function(self):
-        text = '''
+        input_text = '''
       (fn some_fn (a)
          (Fn Int Int)
          (::
@@ -133,56 +59,31 @@ class TestLowering(unittest.TestCase):
 '''
         # I didn't say the function would work!
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
+        output_text = '''
+            (fn some_fn (a)
+              (Fn Int Int)
+              (:: ((:: some_fn (Fn Int Int)) (:: a Int)) Int))
+'''
 
-        some_fn = lowering_input.declarations[0]
-
-        # The output is almost the same, just with an unqualified type
-        updated_fn = syntax.DFunction(
-            name=some_fn.name,
-            t=some_fn.t.unqualify(),
-            arg_names=some_fn.arg_names,
-            body=some_fn.body,
-        )
-
-        expected = lowering.LoweringOutput(
-            declarations=[updated_fn],
-            dictionaries=[]
-        )
-
-        self.assertEqual(expected, result)
+        self.assert_lowers(input_text, output_text)
 
     def test_add_args_to_function(self):
-        text = '''
+        input_text = '''
           (fn show_a (a)
               (=> ((Show t)) (Fn t String))
            "TODO")
 '''
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
+        output_text = '''
+            (fn show_a (dict_Show_t a) (Fn (ShowMethods t) t String) "TODO")
+'''
 
-        t = types.TVariable.from_varname('t')
-        dict_type = types.TApplication(types.TConstructor('ShowMethods'), [t])
-        show_a_type = types.make_function_type([dict_type, t], types.TConstructor('String'))
-        show_a = syntax.DFunction(
-            'show_a',
-            show_a_type,
-            ['dict_Show_t', 'a'],
-            syntax.ELiteral(syntax.LString('TODO'))
-        )
-        expected = lowering.LoweringOutput(
-            declarations=[show_a],
-            dictionaries=[]
-        )
-
-        self.assertEqual(expected, result)
+        self.assert_lowers(input_text, output_text)
 
     def test_looks_up_dictionaries_from_arguments(self):
         # This depends on having the definition of the class to know that
         # `show` comes from it.
-        text = '''
+        input_text = '''
           (fn show_a (a)
               (=> ((Show t)) (Fn t String))
            (:: ((:: show (Fn t String)) (:: a t)) String))
@@ -191,19 +92,27 @@ class TestLowering(unittest.TestCase):
             (:: show (Fn s String)))
 '''
 
-        lowering_input = make_lowering_input(text)
-        result = lowering_input.lower()
-
-        expected = parse_output(
-          '''
+        output_text = '''
           (fn show_a (dict_Show_t a)
             (Fn (ShowMethods t) t String)
             (:: ((:: (. (:: dict_Show_t ShowMethods) show) (Fn t String)) (:: a t)) String))
           (struct (ShowMethods s)
             (:: show (Fn s String)))
 '''
-        )
+
+        self.assert_lowers(input_text, output_text)
+
+    def assert_lowers(self, input_text, output_text):
+        lowering_input = make_lowering_input(input_text)
+        expected = parse_output(output_text)
+
+        result = lowering_input.lower()
+
+        if result != expected:
+            print_diff(expected, result)
+
         self.assertEqual(expected, result)
+
 
     # TODO: Test lowering functions
     # - looking up dictionaries that are the parents of arguments
