@@ -321,7 +321,7 @@ class LoweringInput:
             method = context.find_class_method(name)
             if method is not None:
                 # Handle references to methods on a class
-                # (these come from dictionaries)
+                # (these come from dictionaries - and may need dictionaries of their own)
                 return self._rewrite_class_call(context, method, expression)
 
             raise RuntimeError(f'could not find definition of name {name}')
@@ -366,6 +366,9 @@ class LoweringInput:
 
         variable = EVariable(result_type, expression.name)
 
+        if not dictionary_args:
+            return variable
+
         return EPartial(expression.get_type(), variable, dictionary_args)
 
     def _rewrite_class_call(self, context, method, expression: EVariable):
@@ -377,14 +380,40 @@ class LoweringInput:
         convert that to extracting the field `show` from the `Show` dict,
         complete with logic to find or create that dictionary.
         '''
-
         t = expression.get_type()
-        instance_type = context.find_instance_type(method, t)
+        instance_substitution = context.find_instance_substitution(method, t)
+
+        class_type_var = context.get_class_def(method.tclass).tvar
+        instance_type = instance_substitution[class_type_var]
 
         predicate = Predicate(method.tclass, instance_type)
         dictionary = context.lookup_dictionary_all(predicate)
 
-        return EAccess(expression.get_type(), dictionary, expression.name)
+        # This is additional predicates on the particular method, e.g. (Eq a)
+        # on the `elem` method from `Foldable`.
+        method_predicates = method.qualified.apply(instance_substitution).predicates
+        if method_predicates:
+            dictionary_args = [
+                context.lookup_dictionary_all(p)
+                for p in method_predicates
+            ]
+
+            expr_arg_types, expr_return_type = require_function_type(t)
+            # Create a new type for `expression` now that predicates are passed
+            # as additional args
+            predicate_arg_types = [arg.get_type() for arg in dictionary_args]
+            arg_types = predicate_arg_types + expr_arg_types
+            result_type = make_function_type(arg_types, expr_return_type)
+        else:
+            dictionary_args = []
+            result_type = t
+
+        access = EAccess(result_type, dictionary, expression.name)
+
+        if not dictionary_args:
+            return access
+
+        return EPartial(t, access, dictionary_args)
 
 
 class LoweringOutput:
@@ -498,25 +527,14 @@ class Context:
         ''' returns Method or None '''
         return self.methods.get(name)
 
-    def find_instance_type(self, method, called_type):
-        ''' find the type of the instance used
+    def find_instance_substitution(self, method, called_type):
+        ''' Find the substitution for the instance type used.
 
-        ... based on the class methd and the type it is used at
-        when it is called.
-
-        For example, if `show` is called in a context where its type
-        is `Int -> String`, the instance type would be `Int`.
+        This substitution shows how to change the type variables in a
+        class definitiong to the types (concrete or variable) used in
+        the callsite.
         '''
-
-        tclass = method.tclass
-        qualified = method.qualified
-
-        class_def = self.get_class_def(tclass)
-        class_type_var = class_def.tvar
-
-        substitution = match(qualified.t, called_type)
-        assert(class_type_var in substitution)
-        return substitution[class_type_var]
+        return match(method.qualified.t, called_type)
 
     def lookup_dictionary_all(self, predicate):
         ''' Look up the dictionary using all predicates in scope.

@@ -222,7 +222,7 @@ class Substitution:
         for (tvar, t) in self.substitutions.items():
             t2 = other.get(tvar)
             if t2 is not None and t2 != t:
-                raise TypeError('substitutions do not agree')
+                raise TypeError(f'substitutions do not agree: {self.substitutions} and {other}')
 
         merged = {**self.substitutions, **other.substitutions}
         return Substitution(merged)

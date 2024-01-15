@@ -165,7 +165,43 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
-    # TODO: Test passing additional predicates when calling a class's function
+    def test_pass_predicates_to_class_method(self):
+        input_text = '''
+(class (Foldable t)
+  (:: foldl (Fn (Fn b a b) b (t a) b))
+  (:: elem (=> ((Eq a)) (Fn a (t a) Bool))))
+
+(class (Eq a)
+  (:: == (Fn a a Bool)))
+
+(fn pass_method_to_class (item list)
+  (=> ((Foldable f) (Eq x)) (Fn x (f x) Bool))
+  (::
+    ((:: elem (Fn x (f x) Bool))
+     (:: item x)
+     (:: list (f x)))
+    Bool))
+'''
+
+        output_text = '''
+(fn pass_method_to_class (dict_Foldable_f dict_Eq_x item list)
+  (Fn (FoldableMethods f) (EqMethods x) x (f x) Bool)
+  (:: ((:: (. (:: dict_Foldable_f (FoldableMethods f)) elem)
+           (Fn (EqMethods x) x (f x) Bool))
+       (:: dict_Eq_x (EqMethods x))
+       (:: item x)
+       (:: list (f x)))
+      Bool))
+
+(struct (FoldableMethods t)
+  (:: foldl (Fn (Fn b a b) b (t a) b))
+  (:: elem (Fn (EqMethods a) a (t a) Bool)))
+
+(struct (EqMethods a)
+  (:: == (Fn a a Bool)))
+'''
+
+        self.assert_lowers(input_text, output_text)
 
     def test_simple_instance_function(self):
         input_text = '''
@@ -374,7 +410,6 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
-        # print_result(make_lowering_input(input_text).lower())
 
 
     def assert_lowers(self, input_text, output_text):
