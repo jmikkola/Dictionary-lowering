@@ -411,6 +411,11 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
+    # TODO: Test lowering code with other expression types:
+    # - access
+    # - if statements
+    # - let bindings
+
 
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
