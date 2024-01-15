@@ -443,7 +443,7 @@ class Context:
     @classmethod
     def build(cls, classes, instances, declarations):
         # TODO: Add built-ins to the locals
-        locals = ['inc', 'join']
+        locals = ['inc', 'join', 'length']
 
         scope = {
             d.name: d

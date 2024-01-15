@@ -165,9 +165,6 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
-    # TODO: Test creating instance functions
-    # - one where a method references the superclass of the current instance's class
-
     # TODO: Test passing additional predicates when calling a class's function
 
     def test_simple_instance_function(self):
@@ -313,8 +310,72 @@ class TestLowering(unittest.TestCase):
             (:: show (Fn a String)))
 '''
 
-        # print_result(make_lowering_input(input_text).lower())
         self.assert_lowers(input_text, output_text)
+
+    def test_using_superclass_in_instance(self):
+        input_text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (:: ((:: length (Fn String Int)) (:: s String)) Int)))
+
+(instance (Child String)
+  (fn child (s)
+    (::
+      ((:: inc (Fn Int Int))
+       (:: ((:: parent (Fn String Int)) (:: s String)) Int))
+      Int)))
+'''
+
+        output_text = '''
+(fn make__ParentMethods__String ()
+  (Fn (ParentMethods String))
+  (::
+    (new ParentMethods
+      (::
+        (\ (s)
+          (:: ((:: length (Fn String Int)) (:: s String)) Int))
+        (Fn String Int)))
+    (ParentMethods String)))
+
+(fn make__ChildMethods__String ()
+  (Fn (ChildMethods String))
+  (::
+    (new ChildMethods
+      (::
+        ((:: make__ParentMethods__String (Fn ParentMethods)))
+        ParentMethods)
+      (::
+        (\ (s)
+          (::
+            ((:: inc (Fn Int Int))
+             (::
+               ((::
+                  (. (:: ((:: make__ParentMethods__String (Fn ParentMethods))) ParentMethods) parent)
+                  (Fn String Int))
+                (:: s String))
+               Int))
+            Int))
+        (Fn String Int)))
+    (ChildMethods String)))
+
+(struct (ParentMethods p)
+  (:: parent (Fn p Int)))
+
+(struct (ChildMethods c)
+  (:: superParent (ParentMethods c))
+  (:: child (Fn c Int)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+        # print_result(make_lowering_input(input_text).lower())
+
 
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
