@@ -300,6 +300,13 @@ class LoweringInput:
             lhs = self._lower_expression(context, expression.lhs)
             return EAccess(expression.get_type(), lhs, expression.field)
 
+        if isinstance(expression, EConstruct):
+            arg_exprs = [
+                self._lower_expression(context, e)
+                for e in expression.arg_exprs
+            ]
+            return EConstruct(expression.get_type(), expression.struct_name, arg_exprs)
+
         # Where dictionary passing is actually added:
 
         if isinstance(expression, EVariable):

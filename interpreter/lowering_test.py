@@ -410,11 +410,20 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        # self.assert_lowers(output_text, output_text)
+
+    # TODO: fix the fact that callsites of e.g. make__ParentMethods__String are
+    #       typed as (Fn ParentMethods) instead of (Fn (ParentMethods String)),
+    #       which prevents self.assert_lowers(output_text, output_text) from
+    #       working. This _also_ doesn't work today because the lowering pass
+    #       drops the original structs.
 
     # TODO: Test lowering code with other expression types:
     # - access
     # - if statements
     # - let bindings
+    # - lambdas
+    # - constructing structs
 
 
     def assert_lowers(self, input_text, output_text):
