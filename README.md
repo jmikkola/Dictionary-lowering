@@ -4,15 +4,25 @@ This is another attempt at writing dictionary-passing. The plan here is to keep 
 easy to work with as possible, meaning (a) an ML-like execution model and (b) a very simple
 tree-walking interpreter on the backend.
 
+## Installing and running
+
+This depends on Python 3.
+
+`make installdeps` to install the python tools used for development.
+
+`make test` to test, `make check` to run some basic lints.
+
 
 ## Status
 
-The basic lowering logic has been ported from the Haskell project.
+The basic lowering logic is there, but it is only called from tests right now. The main executable
+doesn't do anything.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
 - [in progress] The immediate next step is to use the parser to build unit tests of the lowering logic.
 
+- Add a front-end that can read files
 - And a treewalking interpreter
 - Idea: Add a type check pass after the lowering is done to sanity-check the output?
 - Idea: Add a way to convert syntax/types back to s-expressions for the sake of nice output. This
