@@ -195,6 +195,72 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
+    def test_class_and_instance_with_predicates_on_method(self):
+        # This also tests an instance that uses other instance methods
+
+        input_text = '''
+          (class (Next n)
+            (:: next (Fn n n))
+            (:: showNext (=> ((Show n)) (Fn n String))))
+
+          (class (Show a)
+            (:: show (Fn a String)))
+
+          (instance (Show Int)
+            (fn show (n) "not implemented"))
+
+          (instance (Next Int)
+            (fn next (x)
+              (:: ((:: inc (Fn Int Int)) (:: x Int)) Int))
+            (fn showNext (x)
+              (:: ((:: show (Fn Int String)) ((:: next (Fn Int Int)) (:: x Int))) String)))
+'''
+
+        output_text = '''
+          (fn make__ShowMethods__Int ()
+            (Fn (ShowMethods Int))
+            (:: (new ShowMethods
+                  (:: (\ (n) "not implemented") (Fn Int String)))
+              (ShowMethods Int)))
+
+          (fn make__NextMethods__Int ()
+            (Fn (NextMethods Int))
+            (:: (new NextMethods
+                  (:: (\ (x) (:: ((:: inc (Fn Int Int)) (:: x Int)) Int)) (Fn Int Int))
+                  (::
+                    (\ (x) (::
+                             ((::
+                                (. (::
+                                     ((::
+                                        make__ShowMethods__Int
+                                        (Fn ShowMethods)))
+                                     ShowMethods)
+                                   show)
+                                (Fn Int String))
+                               ((::
+                                   (. (::
+                                        ((::
+                                           make__NextMethods__Int
+                                           (Fn NextMethods)))
+                                        NextMethods)
+                                      next)
+                                   (Fn Int Int))
+                                 (:: x Int)))
+                               String))
+                    (Fn Int String)))
+              (NextMethods Int)))
+
+          (struct (NextMethods n)
+            (:: next (Fn n n))
+            (:: showNext (Fn (ShowMethods n) n String)))
+
+          (struct (ShowMethods a)
+            (:: show (Fn a String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+        # print_result(make_lowering_input(input_text).lower())
+
 
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)

@@ -439,7 +439,7 @@ class Context:
     @classmethod
     def build(cls, classes, instances, declarations):
         # TODO: Add built-ins to the locals
-        locals = []
+        locals = ['inc']
 
         scope = {
             d.name: d
