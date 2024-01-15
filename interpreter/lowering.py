@@ -296,6 +296,10 @@ class LoweringInput:
             else_case = self._lower_expression(context, expression.else_case)
             return EIf(expression.get_type(), test, if_case, else_case)
 
+        if isinstance(expression, EAccess):
+            lhs = self._lower_expression(context, expression.lhs)
+            return EAccess(expression.get_type(), lhs, expression.field)
+
         # Where dictionary passing is actually added:
 
         if isinstance(expression, EVariable):
@@ -439,7 +443,7 @@ class Context:
     @classmethod
     def build(cls, classes, instances, declarations):
         # TODO: Add built-ins to the locals
-        locals = ['inc']
+        locals = ['inc', 'join']
 
         scope = {
             d.name: d

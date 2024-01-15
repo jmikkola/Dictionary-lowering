@@ -166,8 +166,6 @@ class TestLowering(unittest.TestCase):
         self.assert_lowers(input_text, output_text)
 
     # TODO: Test creating instance functions
-    # - one where a method has additional predicates
-    # - one where an instance has predicates (that are used in the definition)
     # - one where a method references the superclass of the current instance's class
 
     # TODO: Test passing additional predicates when calling a class's function
@@ -223,6 +221,7 @@ class TestLowering(unittest.TestCase):
                   (:: (\ (n) "not implemented") (Fn Int String)))
               (ShowMethods Int)))
 
+          ;; If you think this is bad, imagine what the raw AST would look like
           (fn make__NextMethods__Int ()
             (Fn (NextMethods Int))
             (:: (new NextMethods
@@ -259,8 +258,63 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
-        # print_result(make_lowering_input(input_text).lower())
 
+    def test_instance_with_predicates(self):
+        input_text = '''
+          (class (Show a)
+            (:: show (Fn a String)))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+
+          ;; I really need a type inference algorithm
+          (instance (=> ((Show a)) (Show (Pair a)))
+            (fn show (pair)
+              (::
+                (
+                 (:: join (Fn String String String))
+                 (::
+                   (
+                    (:: show (Fn a String))
+                    (:: (. (:: pair (Pair a)) x) a))
+                   String)
+                 (::
+                   (
+                    (:: show (Fn a String))
+                    (:: (. (:: pair (Pair a)) y) a))
+                   String))
+                String)))
+'''
+
+        output_text = '''
+          ;; I don't love the Pair<a> naming scheme...
+          (fn make__ShowMethods__Pair<a> (dict_Show_a)
+            (Fn (ShowMethods a) (ShowMethods (Pair a)))
+            (::
+              (new ShowMethods
+                (::
+                  (\ (pair)
+                    (::
+                      ((:: join (Fn String String String))
+                       (::
+                         ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                          (:: (. (:: pair (Pair a)) x) a))
+                         String)
+                       (::
+                         ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                          (:: (. (:: pair (Pair a)) y) a))
+                         String))
+                      String))
+                  (Fn (Pair a) String)))
+              (ShowMethods (Pair a))))
+
+          (struct (ShowMethods a)
+            (:: show (Fn a String)))
+'''
+
+        # print_result(make_lowering_input(input_text).lower())
+        self.assert_lowers(input_text, output_text)
 
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
