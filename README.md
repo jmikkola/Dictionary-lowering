@@ -21,13 +21,16 @@ doesn't do anything.
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
 - [in progress] The immediate next step is to use the parser to build unit tests of the lowering logic.
+    - There are some TODOs in lowering_test.py that explain the current state.
 
 - Add a front-end that can read files
-- And a treewalking interpreter
-- Idea: Add a type check pass after the lowering is done to sanity-check the output?
-- Idea: Add a way to convert syntax/types back to s-expressions for the sake of nice output. This
-  could also be part of the parser test - the output should be the same as the input s-expressions.
-
+- And a treewalking interpreter. This will shake out any major incorrect assumptions in how the
+  lowering is done.
+- Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
+  also used for the input, this would only need to handle functions and structs).
+- Add a check pass to sanity-check the input (e.g. no duplicate class definitions or method
+  arguments, classes and types referenced actually exist, etc).
+- Add a type inference pass (so the input doesn't have to be fully annotated with types)
 
 Some cleanup I want to do at some point:
 
