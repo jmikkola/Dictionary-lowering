@@ -71,11 +71,11 @@ class TestLowering(unittest.TestCase):
         input_text = '''
           (fn show_a (a)
               (=> ((Show t)) (Fn t String))
-           "TODO")
+           "_")
 '''
 
         output_text = '''
-            (fn show_a (dict_Show_t a) (Fn (ShowMethods t) t String) "TODO")
+            (fn show_a (dict_Show_t a) (Fn (ShowMethods t) t String) "_")
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -145,14 +145,14 @@ class TestLowering(unittest.TestCase):
             (:: show (Fn a String)))
 
           (instance (Show Int)
-            (fn show (i) "TODO"))
+            (fn show (i) "_"))
  '''
 
         output_text = '''
 (fn make__ShowMethods__Int ()
   (Fn (ShowMethods Int))
   (:: (new ShowMethods
-        (:: (\ (i) "TODO") (Fn Int String)))
+        (:: (\ (i) "_") (Fn Int String)))
   (ShowMethods Int)))
 
 (fn show_an_int ()
@@ -210,14 +210,14 @@ class TestLowering(unittest.TestCase):
 
           (instance (Show Int)
             (fn show (i)
-              "TODO"))
+              "_"))
 '''
 
         output_text = '''
           (fn make__ShowMethods__Int ()
             (Fn (ShowMethods Int))
             (:: (new ShowMethods
-                  (:: (\ (i) "TODO") (Fn Int String)))
+                  (:: (\ (i) "_") (Fn Int String)))
                 (ShowMethods Int)))
 
           (struct (ShowMethods a)
