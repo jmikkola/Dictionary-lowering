@@ -157,7 +157,7 @@ class TestLowering(unittest.TestCase):
 
 (fn show_an_int ()
   (Fn String)
-  (:: ((:: (. (:: ((:: make__ShowMethods__Int (Fn ShowMethods))) ShowMethods) show) (Fn Int String)) 12345) String))
+  (:: ((:: (. (:: ((:: make__ShowMethods__Int (Fn (ShowMethods Int)))) (ShowMethods Int)) show) (Fn Int String)) 12345) String))
 
 (struct (ShowMethods a)
   (:: show (Fn a String)))
@@ -265,16 +265,16 @@ class TestLowering(unittest.TestCase):
                                 (. (::
                                      ((::
                                         make__ShowMethods__Int
-                                        (Fn ShowMethods)))
-                                     ShowMethods)
+                                        (Fn (ShowMethods Int))))
+                                     (ShowMethods Int))
                                    show)
                                 (Fn Int String))
                                ((::
                                    (. (::
                                         ((::
                                            make__NextMethods__Int
-                                           (Fn NextMethods)))
-                                        NextMethods)
+                                           (Fn (NextMethods Int))))
+                                        (NextMethods Int))
                                       next)
                                    (Fn Int Int))
                                  (:: x Int)))
@@ -385,15 +385,17 @@ class TestLowering(unittest.TestCase):
   (::
     (new ChildMethods
       (::
-        ((:: make__ParentMethods__String (Fn ParentMethods)))
-        ParentMethods)
+        ((:: make__ParentMethods__String (Fn (ParentMethods String))))
+        (ParentMethods String))
       (::
         (\ (s)
           (::
             ((:: inc (Fn Int Int))
              (::
                ((::
-                  (. (:: ((:: make__ParentMethods__String (Fn ParentMethods))) ParentMethods) parent)
+                  (. (:: ((:: make__ParentMethods__String (Fn (ParentMethods String))))
+                         (ParentMethods String))
+                     parent)
                   (Fn String Int))
                 (:: s String))
                Int))
@@ -411,12 +413,6 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
         # self.assert_lowers(output_text, output_text)
-
-    # TODO: fix the fact that callsites of e.g. make__ParentMethods__String are
-    #       typed as (Fn ParentMethods) instead of (Fn (ParentMethods String)),
-    #       which prevents self.assert_lowers(output_text, output_text) from
-    #       working. This _also_ doesn't work today because the lowering pass
-    #       drops the original structs.
 
     # TODO: Test lowering code with other expression types:
     # - access

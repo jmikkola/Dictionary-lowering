@@ -663,7 +663,10 @@ class Context:
         name = _instance_constructor_name(instance)
 
         tclass = instance.get_class()
-        dictionary_type = TConstructor(_class_to_dictionary_name(tclass))
+        dictionary_type = TApplication(
+            TConstructor(_class_to_dictionary_name(tclass)),
+            [instance.get_type()]
+        )
         arg_types = [
             _pred_type_to_arg_type(p)
             for p in instance.get_predicates()
