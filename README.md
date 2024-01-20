@@ -4,7 +4,7 @@ This is another attempt at writing dictionary-passing. The plan here is to keep 
 easy to work with as possible, meaning (a) an ML-like execution model and (b) a very simple
 tree-walking interpreter on the backend.
 
-## Installing and running
+## Installing and testing
 
 This depends on Python 3.
 
@@ -12,11 +12,16 @@ This depends on Python 3.
 
 `make test` to test, `make check` to run some basic lints.
 
+## Running
+
+Run main.py, e.g.
+
+    python3 ./main.py examples/using_superclasses_in_instance.lisp
+
 
 ## Status
 
-The basic lowering logic is there, but it is only called from tests right now. The main executable
-doesn't do anything.
+The basic lowering logic is there, but it is only called from tests right now.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
