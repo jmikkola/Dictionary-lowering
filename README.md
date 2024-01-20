@@ -20,8 +20,7 @@ doesn't do anything.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
-- [Next] Add a front-end that can read files
-- And a treewalking interpreter. This will shake out any major incorrect assumptions in how the
+- [next] And a treewalking interpreter. This will shake out any major incorrect assumptions in how the
   lowering is done.
 - Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
   also used for the input, this would only need to handle functions and structs).
