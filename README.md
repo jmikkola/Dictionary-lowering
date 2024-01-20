@@ -19,6 +19,32 @@ Run main.py, e.g.
     python3 ./main.py examples/using_superclasses_in_instance.lisp
 
 
+## Syntax example
+
+```lisp
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (:: ((:: length (Fn String Int)) (:: s String)) Int)))
+
+(instance (Child String)
+  (fn child (s)
+    (::
+      ((:: inc (Fn Int Int))
+       (:: ((:: parent (Fn String Int)) (:: s String)) Int))
+      Int)))
+```
+
+The nodes that start with `::` are defining the type of the first argument.
+This is currently necessary because this has no type checker or type inference.
+
+
 ## Status
 
 The basic lowering logic is there, but it is only called from tests right now.
