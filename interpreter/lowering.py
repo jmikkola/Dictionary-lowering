@@ -38,8 +38,9 @@ from interpreter.types import (
 class LoweringInput:
     ''' This contains the inputs to the lowering pass '''
 
-    def __init__(self, declarations: list, classes: list, instances: list):
+    def __init__(self, declarations: list, structs: list, classes: list, instances: list):
         self.declarations = declarations
+        self.structs = structs
         self.classes = classes
         self.instances = instances
 
@@ -64,7 +65,7 @@ class LoweringInput:
 
         return LoweringOutput(
             dictionary_functions + lowered_declarations,
-            dictionaries
+            dictionaries + self.structs
         )
 
     def _make_dictionary(self, class_def):

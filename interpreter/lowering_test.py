@@ -101,6 +101,10 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        # Ensure that the output would lower to the same thing. This is a way
+        # to ensure that no information is lost in the lowering pass, and the
+        # output is basically sane.
+        self.assert_lowers(output_text, output_text)
 
     def test_looks_up_parent_of_argument(self):
         input_text = '''
@@ -134,6 +138,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_lowering_class_use_for_concrete_type(self):
         input_text = '''
@@ -164,6 +169,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_pass_predicates_to_class_method(self):
         input_text = '''
@@ -202,6 +208,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_simple_instance_function(self):
         input_text = '''
@@ -225,6 +232,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_class_and_instance_with_predicates_on_method(self):
         # This also tests an instance that uses other instance methods
@@ -291,6 +299,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_instance_with_predicates(self):
         input_text = '''
@@ -344,9 +353,14 @@ class TestLowering(unittest.TestCase):
 
           (struct (ShowMethods a)
             (:: show (Fn a String)))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_using_superclass_in_instance(self):
         input_text = '''
@@ -412,7 +426,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
-        # self.assert_lowers(output_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     # TODO: Test lowering code with other expression types:
     # - access
@@ -436,7 +450,7 @@ class TestLowering(unittest.TestCase):
             show_result(result),
             '=================',
         ]
-        message = '\n'.join(message_lines)
+        message = '\n' + '\n'.join(message_lines)
 
         self.assertEqual(expected, result, message)
 
@@ -494,6 +508,7 @@ def make_lowering_input(text):
 
     return lowering.LoweringInput(
         declarations=parse_result.functions,
+        structs=parse_result.structs,
         classes=parse_result.classes,
         instances=parse_result.instances,
     )
