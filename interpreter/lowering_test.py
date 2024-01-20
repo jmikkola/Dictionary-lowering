@@ -432,10 +432,17 @@ class TestLowering(unittest.TestCase):
 
         result = lowering_input.lower()
 
-        if result != expected:
-            print_diff(expected, result)
+        message_lines = [
+            '--- Expected: ---',
+            show_result(expected),
+            '=================',
+            '--- Result: -----',
+            show_result(result),
+            '=================',
+        ]
+        message = '\n'.join(message_lines)
 
-        self.assertEqual(expected, result)
+        self.assertEqual(expected, result, message)
 
 
 def parse_output(text):
@@ -477,6 +484,13 @@ def print_diff(expected, result):
 def print_result(result):
     for lisp in result.to_lisp():
         print(syntax.render_lisp(lisp))
+
+
+def show_result(result):
+    return '\n'.join(
+        syntax.render_lisp(lisp)
+        for lisp in result.to_lisp()
+    )
 
 
 def make_lowering_input(text):
