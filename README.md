@@ -20,10 +20,7 @@ doesn't do anything.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
-- [in progress] The immediate next step is to use the parser to build unit tests of the lowering logic.
-    - There are some TODOs in lowering_test.py that explain the current state.
-
-- Add a front-end that can read files
+- [Next] Add a front-end that can read files
 - And a treewalking interpreter. This will shake out any major incorrect assumptions in how the
   lowering is done.
 - Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
