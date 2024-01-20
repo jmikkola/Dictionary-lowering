@@ -272,16 +272,17 @@ class LoweringInput:
             return ECall(expression.get_type(), f_expr, arg_exprs)
 
         if isinstance(expression, ELet):
-            bindings = [
-                Binding(b.name, self._lower_expression(context, b.value))
-                for b in expression.bindings
-            ]
-            binding_names = [b.name for b in bindings]
-
             # Add the names defined in the let block as local variables
             # (potentially shadowing other definitions) before handling
-            # dictionary passing in the body.
+            # dictionary passing in the body or binding expressions.
+            # (bindings are allowed to refer to each other)
+            binding_names = [b.name for b in expression.bindings]
             lambda_context = context.for_method(binding_names, [])
+
+            bindings = [
+                Binding(b.name, self._lower_expression(lambda_context, b.value))
+                for b in expression.bindings
+            ]
             inner = self._lower_expression(lambda_context, expression.inner)
 
             return ELet(expression.get_type(), bindings, inner)
@@ -480,7 +481,7 @@ class Context:
     @classmethod
     def build(cls, classes, instances, declarations):
         # TODO: Add built-ins to the locals
-        locals = ['inc', 'join', 'length']
+        locals = ['inc', 'join', 'length', '+', '*', '-', '/']
 
         scope = {
             d.name: d

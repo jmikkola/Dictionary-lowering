@@ -80,6 +80,131 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
 
+    def test_lowering_struct_access(self):
+        input_text = '''
+          (fn show_x (pair)
+             (=> ((Show t)) (Fn (Pair t) String))
+             (:: ((:: show (Fn t String))
+                  (:: (. (:: pair (Pair t)) x) t))
+                 String))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+'''
+
+        output_text = '''
+          (fn show_x (dict_Show_t pair)
+            (Fn (ShowMethods t) (Pair t) String)
+            (:: ((:: (. (:: dict_Show_t (ShowMethods t)) show)
+                     (Fn t String))
+                 (:: (. (:: pair (Pair t)) x) t))
+                String))
+
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+    def test_lowering_if_expressions(self):
+        input_text = '''
+          (fn show_either (first? first second)
+              (=> ((Show a)) (Fn Bool a a String))
+              (:: (if (:: first? Bool)
+                    (:: ((:: show (Fn a String)) (:: first a)) String)
+                    (:: ((:: show (Fn a String)) (:: second a)) String))
+                  String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+'''
+
+        output_text = '''
+          (fn show_either (dict_Show_a first? first second)
+            (Fn (ShowMethods a) Bool a a String)
+            (:: (if (:: first? Bool)
+                  (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                       (:: first a))
+                      String)
+                  (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                       (:: second a))
+                      String))
+              String))
+
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+    def test_lowering_let_expression(self):
+        input_text = '''
+          (fn tenth-power (x)
+             (Fn Int Int)
+             (let ((x2  (* x x))
+                   (x4 (* x2 x2))
+                   (x8 (* x4 x4)))
+                (* x8 x2)))
+'''
+
+        output_text = '''
+          (fn tenth-power (x)
+             (Fn Int Int)
+             (let ((x2  (* x x))
+                   (x4 (* x2 x2))
+                   (x8 (* x4 x4)))
+                (* x8 x2)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+    def test_lowering_lambda_expression(self):
+        input_text = '''
+          (fn make-adder (x)
+            (Fn Int (Fn Int Int))
+            (\ (n) (+ x n)))
+'''
+
+        output_text = '''
+          (fn make-adder (x)
+            (Fn Int (Fn Int Int))
+            (\ (n) (+ x n)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+    def test_lowering_struct_construction(self):
+        input_text = '''
+          (fn make-pair (x y)
+            (Fn a a (Pair a))
+            (new Pair x y))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+'''
+
+        output_text = '''
+          (fn make-pair (x y)
+            (Fn a a (Pair a))
+            (new Pair x y))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
+
     def test_looks_up_dictionaries_from_arguments(self):
         # This depends on having the definition of the class to know that
         # `show` comes from it.
@@ -427,14 +552,6 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
         self.assert_lowers(output_text, output_text)
-
-    # TODO: Test lowering code with other expression types:
-    # - access
-    # - if statements
-    # - let bindings
-    # - lambdas
-    # - constructing structs
-
 
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
