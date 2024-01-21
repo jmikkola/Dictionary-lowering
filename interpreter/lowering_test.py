@@ -271,6 +271,55 @@ class TestLowering(unittest.TestCase):
         self.assert_lowers(input_text, output_text)
         self.assert_lowers(output_text, output_text)
 
+    def test_passes_dictionary_for_concrete_type_to_generic_method(self):
+        input_text = '''
+          (fn first-function ()
+            (Fn String)
+            (:: ((:: second-function (Fn Int String)) 123) String))
+
+          (fn second-function (x)
+            (=> ((Show a)) (Fn a String))
+            (:: ((:: show (Fn a String)) (:: x a)) String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+
+          (instance (Show Int)
+            (fn show (i) "_"))
+'''
+
+        output_text = '''
+          (fn make__ShowMethods__Int ()
+            (Fn (ShowMethods Int))
+            (:: (new ShowMethods
+                  (:: (\ (i) "_")
+                      (Fn Int String)))
+                (ShowMethods Int)))
+
+          (fn first-function ()
+            (Fn String)
+            (:: ((:: second-function (Fn (ShowMethods Int) Int String))
+                 (:: ((:: make__ShowMethods__Int
+                          (Fn (ShowMethods Int))))
+                     (ShowMethods Int))
+                 123)
+                String))
+
+          (fn second-function (dict_Show_a x)
+            (Fn (ShowMethods a) a String)
+            (:: ((:: (. (:: dict_Show_a (ShowMethods a))
+                        show)
+                     (Fn a String))
+                 (:: x a))
+                String))
+
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
+
     def test_looks_up_parent_of_argument(self):
         input_text = '''
 (fn takes_child (xc)

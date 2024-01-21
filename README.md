@@ -68,3 +68,8 @@ Some cleanup I want to do at some point:
 - Create a function to nicely format the output (maybe not a full pretty-print algorithm that
   handles a target line length, just simple logic that breaks common things like if statements into
   multiple lines).
+- When lowering uses of class methods on concrete types (e.g. `show 123`), instead of making the
+  entire instance dictionary then accessing one method out of that dictionary, it makes more sense
+  to hard-code a reference to that particular function instead. Doing this requires making
+  stand-alone functions for the instance methods instead of them being lambda functions in the
+  dictionary constructor.
