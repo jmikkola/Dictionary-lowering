@@ -51,8 +51,8 @@ The basic lowering logic is there, but it is only called from tests right now.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
-- [next] And a treewalking interpreter. This will shake out any major incorrect assumptions in how the
-  lowering is done.
+- [in progress] And a treewalking interpreter. This will shake out any major incorrect assumptions
+  in how the lowering is done.
 - Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
   also used for the input, this would only need to handle functions and structs).
 - Add a check pass to sanity-check the input (e.g. no duplicate class definitions or method
