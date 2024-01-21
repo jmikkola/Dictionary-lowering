@@ -36,7 +36,7 @@ class Interpreter:
             self.declarations[decl.name] = decl
 
     def eval_main(self):
-        ''' StAart running the main function '''
+        ''' Start running the main function '''
         self._call_function('main', [])
 
     def _call_function(self, name, arg_values):
@@ -138,6 +138,20 @@ class Interpreter:
             assert(isinstance(arg_values[1], IntValue))
             result_value = arg_values[0].value + arg_values[1].value
             return IntValue(result_value)
+        elif name == '-':
+            assert(len(arg_values) == 2)
+            # TODO: handle other types
+            assert(isinstance(arg_values[0], IntValue))
+            assert(isinstance(arg_values[1], IntValue))
+            result_value = arg_values[0].value - arg_values[1].value
+            return IntValue(result_value)
+        elif name == '<':
+            assert(len(arg_values) == 2)
+            # TODO: handle other types
+            assert(isinstance(arg_values[0], IntValue))
+            assert(isinstance(arg_values[1], IntValue))
+            result_value = arg_values[0].value < arg_values[1].value
+            return BoolValue(result_value)
         raise NotImplementedError('builtin function not implemented: ' + name)
 
 
