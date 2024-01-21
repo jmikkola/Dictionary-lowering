@@ -231,6 +231,45 @@ class TestLowering(unittest.TestCase):
         # output is basically sane.
         self.assert_lowers(output_text, output_text)
 
+    def test_passes_class_predicates_to_another_method(self):
+        input_text = '''
+          (fn first-function (x)
+            (=> ((Show a)) (Fn a String))
+            (:: ((:: concat (Fn String String String))
+                 "> "
+                 (:: ((:: second-function (Fn a String)) (:: x a)) String))
+                String))
+
+          (fn second-function (x)
+            (=> ((Show a)) (Fn a String))
+            (:: ((:: show (Fn a String)) (:: x a)) String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+'''
+
+        output_text = '''
+          (fn first-function (dict_Show_a x)
+            (Fn (ShowMethods a) a String)
+            (:: ((:: concat (Fn String String String))
+                 "> "
+                 (:: ((:: second-function
+                          (Fn (ShowMethods a) a String))
+                      (:: dict_Show_a (ShowMethods a))
+                      (:: x a))
+                     String))
+                String))
+
+          (fn second-function (dict_Show_a x)
+            (Fn (ShowMethods a) a String)
+            (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String)) (:: x a)) String))
+
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+
     def test_looks_up_parent_of_argument(self):
         input_text = '''
 (fn takes_child (xc)

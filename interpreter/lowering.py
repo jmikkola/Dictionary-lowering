@@ -481,7 +481,7 @@ class Context:
     @classmethod
     def build(cls, classes, instances, declarations):
         # TODO: Add built-ins to the locals
-        locals = ['inc', 'join', 'length', '+', '*', '-', '/']
+        locals = ['inc', 'join', 'concat', 'length', '+', '*', '-', '/']
 
         scope = {
             d.name: d
