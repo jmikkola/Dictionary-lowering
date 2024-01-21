@@ -634,7 +634,7 @@ class Context:
                 return super_expr
 
             # Check superclasses recursively
-            recursive_super_expr = self._find_super(super_class, predicate, super_expr)
+            recursive_super_expr = self._find_super(super_pred, predicate, super_expr)
             if recursive_super_expr is not None:
                 return recursive_super_expr
 

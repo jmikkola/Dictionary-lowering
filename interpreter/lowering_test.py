@@ -269,6 +269,7 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
 
     def test_looks_up_parent_of_argument(self):
         input_text = '''
@@ -303,6 +304,52 @@ class TestLowering(unittest.TestCase):
 
         self.assert_lowers(input_text, output_text)
         self.assert_lowers(output_text, output_text)
+
+    def test_superclass_of_superclass(self):
+        input_text = '''
+(fn takes_grandchild (value)
+  (=> ((GrandChild t)) (Fn t Int))
+  (:: ((:: parent  (Fn t Int))
+       (:: value t))
+      Int))
+
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c) superclasses (Parent)
+  (:: child (Fn c String)))
+
+(class (GrandChild gc) superclasses (Child)
+  (:: grandchild (Fn gc Bool)))
+'''
+
+        output_text = '''
+(fn takes_grandchild (dict_GrandChild_t value)
+  (Fn (GrandChildMethods t) t Int)
+  (:: ((:: (. (:: (. (:: (. (:: dict_GrandChild_t
+                               (GrandChildMethods t))
+                            superChild)
+                         (ChildMethods t))
+                     superParent)
+                  (ParentMethods t))
+              parent)
+           (Fn t Int))
+       (:: value t))
+      Int))
+
+(struct (ParentMethods p)
+  (:: parent (Fn p Int)))
+
+(struct (ChildMethods c)
+  (:: superParent (ParentMethods c))
+  (:: child (Fn c String)))
+
+(struct (GrandChildMethods gc)
+  (:: superChild (ChildMethods gc))
+  (:: grandchild (Fn gc Bool)))
+'''
+
+        self.assert_lowers(input_text, output_text)
 
     def test_lowering_class_use_for_concrete_type(self):
         input_text = '''
@@ -626,7 +673,7 @@ def parse_output(text):
     for sexpr in lists:
         if sexpr[0] == 'fn':
             fn = parser._parse_function_declaration(sexpr)
-            assert(fn.t.predicates == [])
+            assert fn.t.predicates == [], "did you pass input text as the output text?"
             # Remove the predicates from the function's type
             fn.t = fn.t.unqualify()
             declarations.append(fn)
