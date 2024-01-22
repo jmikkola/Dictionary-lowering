@@ -60,6 +60,11 @@ class Interpreter:
                 for arg_expr in expression.arg_exprs
             ]
 
+            # Unwrap partial application[s]
+            while isinstance(function, PartialApValue):
+                arg_values = function.arg_values + arg_values
+                function = function.function_value
+
             if isinstance(function, FunctionValue):
                 decl = function.declaration
                 call_scope = Scope.for_args(decl.arg_names, arg_values)
@@ -85,7 +90,13 @@ class Interpreter:
             })
             return struct_value
         elif isinstance(expression, syntax.EPartial):
-            pass # TODO
+            function_value = self._eval_expression(function_name, scope, expression.f_expr)
+            arg_values = [
+                self._eval_expression(function_name, scope, arg_expr)
+                for arg_expr in expression.arg_exprs
+            ]
+
+            return PartialApValue(expression.get_type(), function_value, arg_values)
         elif isinstance(expression, syntax.EAccess):
             lhs = self._eval_expression(function_name, scope, expression.lhs)
             assert(isinstance(lhs, StructValue))
@@ -364,3 +375,27 @@ class BuiltinFunction(Value):
 
     def builtin_str(self):
         return f'Builtin({self.name})'
+
+class PartialApValue(Value):
+    def __init__(self, expr_type, function_value, arg_values):
+        self.expr_type = expr_type
+        self.function_value = function_value
+        self.arg_values = arg_values
+
+    def get_type(self):
+        return self.expr_type
+
+    def __repr__(self):
+        return f'PartialApValue({repr(self.expr_type)}, {repr(self.function_value)}, {repr(self.arg_values)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, PartialApValue) and
+            o.expr_type == self.expr_type and
+            o.function_value == self.function_value and
+            o.arg_values == self.arg_values
+        )
+
+    def builtin_str(self):
+        f_str = self.function_value.builtin_str()
+        return f'PartiallyApplied({f_str})'

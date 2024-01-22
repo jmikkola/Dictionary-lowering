@@ -98,6 +98,64 @@ class TreewalkerTest(unittest.TestCase):
         expected = treewalker.StringValue('123, 456')
         self.assertEqual(expected, result)
 
+    def test_return_an_instance_method(self):
+        text = '''
+          (fn use_instance_method ()
+            (Fn String)
+            (:: ((:: ((:: get_instance_method (Fn (Fn Int String))))
+                     (Fn Int String))
+                 123)
+                String))
+
+          (fn get_instance_method ()
+            (Fn (Fn Int String))
+            ;; return the `show` function for Int
+            (:: show (Fn Int String)))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+
+          (instance (Show Int)
+            (fn show (i)
+              (:: ((:: str (Fn Int String)) (:: i Int)) String)))
+'''
+
+        result = eval_expression('(use_instance_method)', file_text=text)
+
+        expected = treewalker.StringValue('123')
+        self.assertEqual(expected, result)
+
+    def test_return_partially_applied_function(self):
+        text = '''
+          (fn use_partially_applied_function ()
+            (Fn String)
+            (:: ((:: ((:: get_partially_applied_function
+                         (Fn (Fn Int String))))
+                     (Fn Int String))
+                 321)
+                String))
+
+          (fn get_partially_applied_function ()
+            (Fn (Fn Int String))
+            (:: show_thing (Fn Int String)))
+
+          (fn show_thing (thing)
+            (=> ((Show a)) (Fn a String))
+            (:: ((:: show (Fn a String)) (:: thing a)) String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+
+          (instance (Show Int)
+            (fn show (i)
+              (:: ((:: str (Fn Int String)) (:: i Int)) String)))
+'''
+
+        result = eval_expression('(use_partially_applied_function)', file_text=text)
+
+        expected = treewalker.StringValue('321')
+        self.assertEqual(expected, result)
+
 
 def eval_expression(text, file_text=None, use_lowering=True):
     expression = parse_expression(text)

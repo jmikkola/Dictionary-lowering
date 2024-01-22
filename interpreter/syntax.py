@@ -208,7 +208,7 @@ class EPartial(Expression):
         joined_args = ' '.join(str(a) for a in self.arg_exprs)
         if joined_args:
             joined_args = ' ' + joined_args
-        return f'(*apply* {self.f_expr}{joined_args})'
+        return f'(*partial* {self.f_expr}{joined_args})'
 
     def __repr__(self):
         return f'EPartial({repr(self.t)}, {repr(self.f_expr)}, {repr(self.arg_exprs)})'
