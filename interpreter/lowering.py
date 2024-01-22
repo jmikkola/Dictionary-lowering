@@ -272,6 +272,14 @@ class LoweringInput:
 
             return ECall(expression.get_type(), f_expr, arg_exprs)
 
+        if isinstance(expression, EPartial):
+            f_expr = self._lower_expression(context, expression.f_expr)
+            arg_exprs = [
+                self._lower_expression(context, arg_expr)
+                for arg_expr in expression.arg_exprs
+            ]
+            return EPartial(expression.get_type(), f_expr, arg_exprs)
+
         if isinstance(expression, ELet):
             # Add the names defined in the let block as local variables
             # (potentially shadowing other definitions) before handling

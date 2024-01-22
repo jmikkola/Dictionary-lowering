@@ -688,20 +688,97 @@ class TestLowering(unittest.TestCase):
         self.assert_lowers(input_text, output_text)
         self.assert_lowers(output_text, output_text)
 
+    def test_lowering_partial_function_application(self):
+        input_text = '''
+          (fn use_partially_applied_function ()
+            (Fn String)
+            (:: ((:: ((:: get_partially_applied_function
+                         (Fn (Fn Int String))))
+                     (Fn Int String))
+                 321)
+                String))
+
+          (fn get_partially_applied_function ()
+            (Fn (Fn Int String))
+            (:: show_thing (Fn Int String)))
+
+          (fn show_thing (thing)
+            (=> ((Show a)) (Fn a String))
+            (:: ((:: show (Fn a String)) (:: thing a)) String))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+
+          (instance (Show Int)
+            (fn show (i)
+              (:: ((:: str (Fn Int String)) (:: i Int)) String)))
+'''
+
+        output_text = '''
+          (fn make__ShowMethods__Int ()
+            (Fn (ShowMethods Int))
+            (:: (new ShowMethods
+                  (:: (\ (i)
+                         (:: ((:: str (Fn Int String))
+                              (:: i Int))
+                             String))
+                      (Fn Int String)))
+                (ShowMethods Int)))
+
+          (fn use_partially_applied_function ()
+            (Fn String)
+            (:: ((:: ((:: get_partially_applied_function
+                          (Fn (Fn Int String))))
+                     (Fn Int String))
+                 321)
+                String))
+
+          (fn get_partially_applied_function ()
+             (Fn (Fn Int String))
+             (:: (*partial*
+                   (:: show_thing
+                       (Fn (ShowMethods Int) Int String))
+                   (:: ((:: make__ShowMethods__Int (Fn (ShowMethods Int))))
+                       (ShowMethods Int)))
+                 (Fn Int String)))
+
+          (fn show_thing (dict_Show_a thing)
+            (Fn (ShowMethods a) a String)
+            (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show)
+                     (Fn a String))
+                 (:: thing a))
+                String))
+
+          (struct (ShowMethods s)
+            (:: show (Fn s String)))
+'''
+
+        self.assert_lowers(input_text, output_text)
+        self.assert_lowers(output_text, output_text)
+
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
         expected = parse_output(output_text)
 
         result = lowering_input.lower()
 
-        message_lines = [
-            '--- Expected: ---',
-            show_result(expected),
-            '=================',
-            '--- Result: -----',
-            show_result(result),
-            '=================',
-        ]
+        expected_str = show_result(expected)
+        result_str = show_result(result)
+
+        if expected_str != result_str:
+            message_lines = [
+                '--- Expected: ---',
+                show_result(expected),
+                '=================',
+                '--- Result: -----',
+                show_result(result),
+                '=================',
+            ]
+        else:
+            message_lines = [
+                'expected matches result:',
+                expected_str,
+            ]
         message = '\n' + '\n'.join(message_lines)
 
         self.assertEqual(expected, result, message)

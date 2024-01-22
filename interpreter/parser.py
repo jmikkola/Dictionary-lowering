@@ -286,6 +286,9 @@ def _parse_expression(sexpr):
             return _parse_access(sexpr)
         elif first == '\\':
             return _parse_lambda(sexpr)
+        elif first == '*partial*':
+            # TODO: hide this from public syntax?
+            return _parse_partial(sexpr)
         else:
             # assume it's a function call
             inner = [_parse_expression(e) for e in sexpr]
@@ -382,6 +385,23 @@ def _parse_lambda(sexpr):
 
     body = _parse_expression(sexpr[2])
     return syntax.ELambda(None, arg_names, body)
+
+
+def _parse_partial(sexpr):
+    ''' Parses a partial function application.
+
+    Example:
+       (*partial* + 1)
+    '''
+    assert(len(sexpr) >= 2)
+    function_expression = _parse_expression(sexpr[1])
+
+    arg_expressions = [
+        _parse_expression(a)
+        for a in sexpr[2:]
+    ]
+
+    return syntax.EPartial(None, function_expression, arg_expressions)
 
 
 def _parse_let(sexpr):
