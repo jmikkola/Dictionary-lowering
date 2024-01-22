@@ -168,6 +168,11 @@ class Interpreter:
             assert(isinstance(arg_values[0], StringValue))
             assert(isinstance(arg_values[1], StringValue))
             return StringValue(arg_values[0].value + arg_values[1].value)
+        elif name == 'print':
+            assert(len(arg_values) == 1)
+            assert(isinstance(arg_values[0], StringValue))
+            print(arg_values[0].value)
+            return VoidValue()
         raise NotImplementedError('builtin function not implemented: ' + name)
 
 
@@ -399,3 +404,16 @@ class PartialApValue(Value):
     def builtin_str(self):
         f_str = self.function_value.builtin_str()
         return f'PartiallyApplied({f_str})'
+
+class VoidValue(Value):
+    def get_type(self):
+        return types.TConstructor('Void')
+
+    def __repr__(self):
+        return 'VoidValue()'
+
+    def __eq__(self, o):
+        return isinstance(o, VoidValue)
+
+    def builtin_str(self):
+        return 'Void'

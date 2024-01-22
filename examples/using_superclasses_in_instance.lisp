@@ -15,3 +15,7 @@
       ((:: inc (Fn Int Int))
        (:: ((:: parent (Fn String Int)) (:: s String)) Int))
       Int)))
+
+(fn main ()
+    (Fn Void)
+    (:: ((:: print (Fn String Void)) "Hello world") Void))
