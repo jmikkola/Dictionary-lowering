@@ -5,6 +5,7 @@ This is a tree-walking interpreter
 '''
 
 
+from interpreter import builtins
 from interpreter import syntax
 from interpreter import types
 
@@ -18,12 +19,7 @@ class Interpreter:
         self.declarations = {}
         self.structs = {}
 
-        self.builtins = set([
-            '+', '-', '*', '/', '%',
-            '>', '<', '<=', '>=', '==', '!=',
-            'and', 'or', 'not',
-            'str', 'print',
-        ])
+        self.builtins = set(builtins.NAMES)
 
     def load_structs(self, structs):
         ''' Add struct definitions to the interpreter '''
@@ -83,8 +79,8 @@ class Interpreter:
                 for arg_expr in expression.arg_exprs
             ]
 
-            struct_value = StructValue(expression.type, {
-                field: value
+            struct_value = StructValue(expression.get_type(), {
+                field[0]: value
                 for (field, value) in zip(struct_decl.fields, arg_values)
             })
             return struct_value
@@ -104,7 +100,7 @@ class Interpreter:
             else:
                 return self._eval_expression(function_name, scope, expression.else_case)
         elif isinstance(expression, syntax.ELambda):
-            return LambdaValue(scope, expression.type, expression.arg_names, expression.body)
+            return LambdaValue(scope, expression.get_type(), expression.arg_names, expression.body)
 
         raise NotImplementedError(f'Cannot handle this expression yet: {repr(expression)}')
 
@@ -152,6 +148,15 @@ class Interpreter:
             assert(isinstance(arg_values[1], IntValue))
             result_value = arg_values[0].value < arg_values[1].value
             return BoolValue(result_value)
+        elif name == 'str':
+            assert(len(arg_values) == 1)
+            s = arg_values[0].builtin_str()
+            return StringValue(s)
+        elif name == 'concat':
+            assert(len(arg_values) == 2)
+            assert(isinstance(arg_values[0], StringValue))
+            assert(isinstance(arg_values[1], StringValue))
+            return StringValue(arg_values[0].value + arg_values[1].value)
         raise NotImplementedError('builtin function not implemented: ' + name)
 
 
@@ -213,6 +218,9 @@ class BoolValue(Value):
     def __eq__(self, o):
         return isinstance(o, BoolValue) and o.value == self.value
 
+    def builtin_str(self):
+        return str(self.value)
+
 
 class FloatValue(Value):
     def __init__(self, value: float):
@@ -226,6 +234,9 @@ class FloatValue(Value):
 
     def __eq__(self, o):
         return isinstance(o, FloatValue) and o.value == self.value
+
+    def builtin_str(self):
+        return str(self.value)
 
 
 class IntValue(Value):
@@ -241,6 +252,9 @@ class IntValue(Value):
     def __eq__(self, o):
         return isinstance(o, IntValue) and o.value == self.value
 
+    def builtin_str(self):
+        return str(self.value)
+
 
 class StringValue(Value):
     def __init__(self, value: str):
@@ -254,6 +268,9 @@ class StringValue(Value):
 
     def __eq__(self, o):
         return isinstance(o, StringValue) and o.value == self.value
+
+    def builtin_str(self):
+        return self.value
 
 
 class StructValue(Value):
@@ -276,6 +293,14 @@ class StructValue(Value):
             o.struct_type == self.struct_type and
             o.fields == self.fields
         )
+
+    def builtin_str(self):
+        header = str(self.struct_type) + '{'
+        body = ', '.join(
+            f'{field}={value.builtin_str()}'
+            for (field, value) in self.fields.items()
+        )
+        return header + body + '}'
 
 
 class LambdaValue(Value):
@@ -303,6 +328,9 @@ class LambdaValue(Value):
             o.body == self.body
         )
 
+    def builtin_str(self):
+        return 'Lambda(' + ', '.join(self.arg_names) + ')'
+
 
 class FunctionValue(Value):
     def __init__(self, declaration):
@@ -317,6 +345,9 @@ class FunctionValue(Value):
     def __eq__(self, o):
         return isinstance(o, FunctionValue) and o.declaration == self.declaration
 
+    def builtin_str(self):
+        return f'Function({self.declaration.name})'
+
 
 class BuiltinFunction(Value):
     def __init__(self, name):
@@ -330,3 +361,6 @@ class BuiltinFunction(Value):
 
     def __eq__(self, o):
         return isinstance(o, BuiltinFunction) and o.name == self.name
+
+    def builtin_str(self):
+        return f'Builtin({self.name})'

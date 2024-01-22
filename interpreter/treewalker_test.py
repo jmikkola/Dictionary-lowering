@@ -2,8 +2,9 @@
 
 import unittest
 
-from interpreter import treewalker
+from interpreter import lowering
 from interpreter import parser
+from interpreter import treewalker
 
 
 class TreewalkerTest(unittest.TestCase):
@@ -52,20 +53,71 @@ class TreewalkerTest(unittest.TestCase):
     (+ (fib (- x 2)) (fib (- x 1)))))
 '''
 
-        result = eval_expression('(fib 10)', file_text=text)
+        result = eval_expression('(fib 10)', file_text=text, use_lowering=False)
 
         expected = treewalker.IntValue(55)
         self.assertEqual(expected, result)
 
+    def test_calling_class_instance_method(self):
+        text = '''
+          (fn call_show_pair ()
+            (Fn String)
+            (:: ((:: show_pair (Fn (Pair Int) String))
+                     (:: (new Pair 123 456) (Pair Int)))
+                String))
 
-def eval_expression(text, file_text=None):
+          (fn show_pair (pair)
+             (=> ((Show t)) (Fn (Pair t) String))
+             (:: ((:: concat (Fn String String String))
+                  (:: ((:: show (Fn t String))
+                       (:: (. (:: pair (Pair t)) x) t))
+                      String)
+                  (:: ((:: concat (Fn String String String))
+                       ", "
+                       (:: ((:: show (Fn t String))
+                            (:: (. (:: pair (Pair t)) y) t))
+                           String))
+                      String))
+                 String))
+
+          (struct (Pair a)
+            (:: x a)
+            (:: y a))
+
+          (class (Show s)
+            (:: show (Fn s String)))
+
+          (instance (Show Int)
+            (fn show (i)
+              ;; use the built-in str function
+              (:: ((:: str (Fn Int String)) (:: i Int)) String)))
+'''
+
+        result = eval_expression('(call_show_pair)', file_text=text)
+
+        expected = treewalker.StringValue('123, 456')
+        self.assertEqual(expected, result)
+
+
+def eval_expression(text, file_text=None, use_lowering=True):
     expression = parse_expression(text)
     intp = treewalker.Interpreter()
 
     if file_text is not None:
         parsed = parser.parse(file_text)
-        intp.load_declarations(parsed.functions)
-        intp.load_structs(parsed.structs)
+        if use_lowering:
+            lowering_input = lowering.LoweringInput(
+                parsed.functions,
+                parsed.structs,
+                parsed.classes,
+                parsed.instances
+            )
+            lowering_output = lowering_input.lower()
+            intp.load_declarations(lowering_output.declarations)
+            intp.load_structs(lowering_output.dictionaries)
+        else:
+            intp.load_declarations(parsed.functions)
+            intp.load_structs(parsed.structs)
 
     return intp._eval_expression('<test>', treewalker.Scope(), expression)
 
