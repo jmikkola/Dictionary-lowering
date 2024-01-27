@@ -5,7 +5,7 @@ This is a tree-walking interpreter
 '''
 
 
-from interpreter import builtins
+from interpreter import builtin
 from interpreter import syntax
 from interpreter import types
 
@@ -27,7 +27,7 @@ class Interpreter:
         self.declarations = {}
         self.structs = {}
 
-        self.builtins = set(builtins.NAMES)
+        self.builtin = set(builtin.NAMES)
 
     def load_structs(self, structs):
         ''' Add struct definitions to the interpreter '''
@@ -53,7 +53,7 @@ class Interpreter:
 
         if isinstance(expression, syntax.EVariable):
             name = expression.name
-            if name in self.builtins:
+            if name in self.builtin:
                 return BuiltinFunction(name)
             try:
                 return scope.read(name)

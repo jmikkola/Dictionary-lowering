@@ -18,7 +18,7 @@ This package assumes a few things about the input code:
   hierarchies don't contain cycles)
 """
 
-from interpreter import builtins
+from interpreter import builtin
 
 from interpreter.syntax import (
     Declaration, DFunction, ClassDef, InstanceDef, StructDef,
@@ -489,7 +489,7 @@ class Context:
 
     @classmethod
     def build(cls, classes, instances, declarations):
-        locals = builtins.NAMES
+        locals = builtin.NAMES
 
         scope = {
             d.name: d
