@@ -10,7 +10,15 @@ from interpreter import syntax
 from interpreter import types
 
 
-class NameError(RuntimeError):
+class InterpreterError(RuntimeError):
+    pass
+
+
+class NameError(InterpreterError):
+    pass
+
+
+class TypeError(InterpreterError):
     pass
 
 
@@ -153,41 +161,31 @@ class Interpreter:
 
     def _call_builtin(self, name, arg_values):
         if name == '+':
-            assert(len(arg_values) == 2)
-            # TODO: handle other types
-            assert(isinstance(arg_values[0], IntValue))
-            assert(isinstance(arg_values[1], IntValue))
+            arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
             result_value = arg_values[0].value + arg_values[1].value
-            return IntValue(result_value)
+            return arg_type(result_value)
         elif name == '-':
-            assert(len(arg_values) == 2)
-            # TODO: handle other types
-            assert(isinstance(arg_values[0], IntValue))
-            assert(isinstance(arg_values[1], IntValue))
+            arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue))
             result_value = arg_values[0].value - arg_values[1].value
-            return IntValue(result_value)
+            return arg_type(result_value)
         elif name == '*':
-            assert(len(arg_values) == 2)
-            # TODO: handle other types
-            assert(isinstance(arg_values[0], IntValue))
-            assert(isinstance(arg_values[1], IntValue))
+            arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue))
             result_value = arg_values[0].value * arg_values[1].value
-            return IntValue(result_value)
+            return arg_type(result_value)
         elif name == '<':
-            assert(len(arg_values) == 2)
-            # TODO: handle other types
-            assert(isinstance(arg_values[0], IntValue))
-            assert(isinstance(arg_values[1], IntValue))
+            self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
             result_value = arg_values[0].value < arg_values[1].value
+            return BoolValue(result_value)
+        elif name == '>':
+            self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
+            result_value = arg_values[0].value > arg_values[1].value
             return BoolValue(result_value)
         elif name == 'str':
             assert(len(arg_values) == 1)
             s = arg_values[0].builtin_str()
             return StringValue(s)
         elif name == 'concat':
-            assert(len(arg_values) == 2)
-            assert(isinstance(arg_values[0], StringValue))
-            assert(isinstance(arg_values[1], StringValue))
+            self._expect_arg_types(name, arg_values, 2, (StringValue,))
             return StringValue(arg_values[0].value + arg_values[1].value)
         elif name == 'print':
             assert(len(arg_values) == 1)
@@ -195,6 +193,26 @@ class Interpreter:
             print(arg_values[0].value)
             return VoidValue()
         raise NotImplementedError('builtin function not implemented: ' + name)
+
+    def _expect_arg_types(self, name, arg_values, valid_arg_len, valid_types):
+        ''' Returns the actual type of the arg used '''
+
+        if len(arg_values) != valid_arg_len:
+            raise TypeError(f'Expected {valid_arg_len} args for {name}, got {len(arg_values)}')
+
+        arg_type = type(arg_values[0])
+        if arg_type not in valid_types:
+            ts = ', '.join(t.__name__ for t in valid_types)
+            at = arg_type.__name__
+            raise TypeError(f'Expected args for {name} to be of type {ts}, got {at}')
+
+        for arg in arg_values[1:]:
+            if type(arg) != arg_type:
+                ta = type(arg).__name__
+                at = arg_type.__name__
+                raise TypeError(f'Mismatched arg types for {name}: {at} and {ta}')
+
+        return arg_type
 
 
 class Scope:

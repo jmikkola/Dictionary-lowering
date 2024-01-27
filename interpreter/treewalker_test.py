@@ -171,6 +171,17 @@ class TreewalkerTest(unittest.TestCase):
         expected = treewalker.IntValue(1024)
         self.assertEqual(expected, result)
 
+    def test_plus_with_different_types(self):
+        cases = [
+            ('(+ 1 2)', treewalker.IntValue(3)),
+            ('(+ 1.0 2.0)', treewalker.FloatValue(3.0)),
+            ('(+ "1" "2")', treewalker.StringValue("12")),
+        ]
+
+        for (expression, expected) in cases:
+            result = eval_expression(expression)
+            self.assertEqual(expected, result, expression)
+
 
 def eval_expression(text, file_text=None, use_lowering=True):
     expression = parse_expression(text)
