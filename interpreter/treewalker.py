@@ -172,6 +172,16 @@ class Interpreter:
             arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue))
             result_value = arg_values[0].value * arg_values[1].value
             return arg_type(result_value)
+        elif name == '/':
+            arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue))
+            result_value = arg_values[0].value / arg_values[1].value
+            if arg_type == IntValue:
+                result_value = int(result_value)
+            return arg_type(result_value)
+        elif name == '%':
+            arg_type = self._expect_arg_types(name, arg_values, 2, (IntValue,))
+            result_value = arg_values[0].value % arg_values[1].value
+            return arg_type(result_value)
         elif name == '<':
             self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
             result_value = arg_values[0].value < arg_values[1].value
@@ -179,6 +189,11 @@ class Interpreter:
         elif name == '>':
             self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
             result_value = arg_values[0].value > arg_values[1].value
+            return BoolValue(result_value)
+        elif name == '==':
+            value_types = (IntValue, FloatValue, StringValue, BoolValue, StructValue)
+            self._expect_arg_types(name, arg_values, 2, value_types)
+            result_value = arg_values[0] == arg_values[1]
             return BoolValue(result_value)
         elif name == 'str':
             assert(len(arg_values) == 1)

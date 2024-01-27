@@ -171,6 +171,29 @@ class TreewalkerTest(unittest.TestCase):
         expected = treewalker.IntValue(1024)
         self.assertEqual(expected, result)
 
+    def test_recursive_functions_in_let_expressions(self):
+        ''' Demonstrate that let bindings can be recursive or even mutually recursive '''
+
+        input_text = '''
+          (fn collatz-seq (n)
+            (Fn Int String)
+            (let ((add-num (\ (n rest)
+                            (concat (str n) (concat "," rest))))
+                  (odd (\ (n) (ctz (+ (* n 3) 1))))
+                  (even (\ (n) (ctz (/ n 2))))
+                  (ctz (\ (n)
+                         (if (== n 1)
+                           "1"
+                           (add-num n
+                                  (if (== (% n 2) 0) (even n) (odd n)))))))
+                (ctz n)))
+'''
+
+        result = eval_expression('(collatz-seq 12)', file_text=input_text)
+
+        expected = treewalker.StringValue("12,6,3,10,5,16,8,4,2,1")
+        self.assertEqual(expected, result)
+
     def test_plus_with_different_types(self):
         cases = [
             ('(+ 1 2)', treewalker.IntValue(3)),
@@ -180,6 +203,21 @@ class TreewalkerTest(unittest.TestCase):
 
         for (expression, expected) in cases:
             result = eval_expression(expression)
+            self.assertEqual(expected, result, expression)
+
+    def test_integer_operations(self):
+        cases = [
+            ('(+ 10 12)', 22),
+            ('(* 15 2)', 30),
+            ('(% 15 2)', 1),
+            ('(% 15 3)', 0),
+            ('(/ 16 2)', 8),
+            ('(- 16 1)', 15),
+        ]
+
+        for (expression, int_val) in cases:
+            result = eval_expression(expression)
+            expected = treewalker.IntValue(int_val)
             self.assertEqual(expected, result, expression)
 
 
