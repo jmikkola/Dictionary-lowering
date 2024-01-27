@@ -23,7 +23,9 @@ class TypeError(InterpreterError):
 
 
 class Interpreter:
-    def __init__(self):
+    def __init__(self, print_fn=None):
+        self.print_fn = print_fn
+
         self.declarations = {}
         self.structs = {}
 
@@ -190,10 +192,25 @@ class Interpreter:
             self._expect_arg_types(name, arg_values, 2, (IntValue, FloatValue, StringValue))
             result_value = arg_values[0].value > arg_values[1].value
             return BoolValue(result_value)
+        elif name == '<=':
+            value_types = (IntValue, FloatValue, StringValue)
+            self._expect_arg_types(name, arg_values, 2, value_types)
+            result_value = arg_values[0].value <= arg_values[1].value
+            return BoolValue(result_value)
+        elif name == '>=':
+            value_types = (IntValue, FloatValue, StringValue)
+            self._expect_arg_types(name, arg_values, 2, value_types)
+            result_value = arg_values[0].value >= arg_values[1].value
+            return BoolValue(result_value)
         elif name == '==':
             value_types = (IntValue, FloatValue, StringValue, BoolValue, StructValue)
             self._expect_arg_types(name, arg_values, 2, value_types)
             result_value = arg_values[0] == arg_values[1]
+            return BoolValue(result_value)
+        elif name == '!=':
+            value_types = (IntValue, FloatValue, StringValue, BoolValue, StructValue)
+            self._expect_arg_types(name, arg_values, 2, value_types)
+            result_value = arg_values[0] != arg_values[1]
             return BoolValue(result_value)
         elif name == 'str':
             assert(len(arg_values) == 1)
@@ -205,8 +222,32 @@ class Interpreter:
         elif name == 'print':
             assert(len(arg_values) == 1)
             assert(isinstance(arg_values[0], StringValue))
-            print(arg_values[0].value)
+            if self.print_fn is not None:
+                self.print_fn(arg_values[0].value)
+            else:
+                print(arg_values[0].value)
             return VoidValue()
+        elif name == 'and':
+            self._expect_arg_types(name, arg_values, 2, (BoolValue,))
+            result_value = arg_values[0].value and arg_values[1].value
+            return BoolValue(result_value)
+        elif name == 'or':
+            self._expect_arg_types(name, arg_values, 2, (BoolValue,))
+            result_value = arg_values[0].value or arg_values[1].value
+            return BoolValue(result_value)
+        elif name == 'not':
+            self._expect_arg_types(name, arg_values, 1, (BoolValue,))
+            result_value = not arg_values[0].value
+            return BoolValue(result_value)
+        elif name == 'inc':
+            self._expect_arg_types(name, arg_values, 1, (IntValue,))
+            result_value = arg_values[0].value + 1
+            return IntValue(result_value)
+        elif name == 'length':
+            self._expect_arg_types(name, arg_values, 1, (StringValue,))
+            result_value = len(arg_values[0].value)
+            return IntValue(result_value)
+
         raise NotImplementedError('builtin function not implemented: ' + name)
 
     def _expect_arg_types(self, name, arg_values, valid_arg_len, valid_types):

@@ -2,6 +2,7 @@
 
 import unittest
 
+from interpreter import builtin
 from interpreter import lowering
 from interpreter import parser
 from interpreter import treewalker
@@ -219,6 +220,53 @@ class TreewalkerTest(unittest.TestCase):
             result = eval_expression(expression)
             expected = treewalker.IntValue(int_val)
             self.assertEqual(expected, result, expression)
+
+    def test_builtins(self):
+        ''' Ensure all built-in functions are implemented '''
+
+        val1 = treewalker.IntValue(1)
+        val2 = treewalker.IntValue(2)
+        val3 = treewalker.IntValue(3)
+        val5 = treewalker.IntValue(5)
+        val15 = treewalker.IntValue(15)
+        valTrue = treewalker.BoolValue(True)
+        valFalse = treewalker.BoolValue(False)
+        valFoo = treewalker.StringValue("foo")
+        valBar = treewalker.StringValue("bar")
+        valFoobar = treewalker.StringValue("foobar")
+        val5str = treewalker.StringValue('5')
+        valVoid = treewalker.VoidValue()
+
+        cases = {
+            '!=': ([val1, val1], valFalse),
+            '%': ([val15, val2], val1),
+            '*': ([val1, val2], val2),
+            '+': ([val1, val2], val3),
+            '-': ([val3, val1], val2),
+            '/': ([val15, val3], val5),
+            '<': ([val5, val15], valTrue),
+            '>': ([val5, val15], valFalse),
+            '<=': ([val5, val5], valTrue),
+            '>=': ([val5, val5], valTrue),
+            '==': ([val5, val5], valTrue),
+            'and': ([valTrue, valFalse], valFalse),
+            'or': ([valTrue, valFalse], valTrue),
+            'concat': ([valFoo, valBar], valFoobar),
+            'inc': ([val2], val3),
+            'length': ([valFoo], val3),
+            'not': ([valFalse], valTrue),
+            'print': ([valFoo], valVoid),
+            'str': ([val5], val5str),
+        }
+
+        print_fn = lambda s: None
+        intp = treewalker.Interpreter(print_fn=print_fn)
+
+        for name in builtin.NAMES:
+            self.assertIn(name, cases)
+            (args, expected) = cases[name]
+            result = intp._call_builtin(name, args)
+            self.assertEqual(expected, result, name)
 
 
 def eval_expression(text, file_text=None, use_lowering=True):

@@ -575,7 +575,7 @@ class TestLowering(unittest.TestCase):
             (fn show (pair)
               (::
                 (
-                 (:: join (Fn String String String))
+                 (:: concat (Fn String String String))
                  (::
                    (
                     (:: show (Fn a String))
@@ -598,7 +598,7 @@ class TestLowering(unittest.TestCase):
                 (::
                   (\ (pair)
                     (::
-                      ((:: join (Fn String String String))
+                      ((:: concat (Fn String String String))
                        (::
                          ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
                           (:: (. (:: pair (Pair a)) x) a))
