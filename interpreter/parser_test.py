@@ -40,6 +40,14 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(expected, result)
         self.roundtrip_expression(expected)
 
+    def test_parses_bool(self):
+        cases = [('true', True), ('false', False)]
+        for (text, b) in cases:
+            result = _parse_expression(text)
+            expected = syntax.ELiteral(syntax.LBool(b))
+            self.assertEqual(result, expected, text)
+            self.roundtrip_expression(expected)
+
     def test_parses_variable(self):
         result = _parse_expression('+add')
         expected = syntax.EVariable(None, '+add')

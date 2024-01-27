@@ -270,6 +270,10 @@ def _parse_expression(sexpr):
             return syntax.ELiteral(syntax.LFloat(float(sexpr)))
         if sexpr[0] == '"' and sexpr[-1] == '"':
             return syntax.ELiteral(syntax.LString(eval(sexpr)))
+        if sexpr == 'true':
+            return syntax.ELiteral(syntax.LBool(True))
+        if sexpr == 'false':
+            return syntax.ELiteral(syntax.LBool(False))
         return syntax.EVariable(None, sexpr)
     else:
         assert(isinstance(sexpr, list))

@@ -53,9 +53,6 @@ This is currently necessary because this has no type checker or type inference.
 
 This has a parser front-end that uses an ml-like lisp-based syntax.
 
-- [in progress] And a tree-walking interpreter. This will shake out any major incorrect assumptions
-  in how the lowering is done.
-- Add syntax for boolean values
 - Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
   also used for the input, this would only need to handle functions and structs).
 - Add a check pass to sanity-check the input (e.g. no duplicate class definitions or method

@@ -73,6 +73,26 @@ class LFloat(Literal):
         return TConstructor('Float')
 
 
+class LBool(Literal):
+    def __init__(self, value: bool):
+        self.value = value
+
+    def __str__(self):
+        return f'{self.value}'
+
+    def __repr__(self):
+        return f'LBool({repr(self.value)})'
+
+    def __eq__(self, o):
+        return isinstance(o, LBool) and o.value == self.value
+
+    def to_lisp(self):
+        return 'true' if self.value else 'false'
+
+    def get_type(self) -> Type:
+        return TConstructor('Bool')
+
+
 class Expression:
     def get_type(self) -> Type:
         raise NotImplementedError
@@ -92,7 +112,7 @@ class ELiteral(Expression):
         return isinstance(o, ELiteral) and o.literal == self.literal
 
     def to_lisp(self):
-        return str(self)
+        return self.literal.to_lisp()
 
     def get_type(self) -> Type:
         return self.literal.get_type()
