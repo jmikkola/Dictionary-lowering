@@ -156,6 +156,21 @@ class TreewalkerTest(unittest.TestCase):
         expected = treewalker.StringValue('321')
         self.assertEqual(expected, result)
 
+    def test_let_expressions(self):
+        input_text = '''
+          (fn tenth-power (x)
+             (Fn Int Int)
+             (let ((x2  (* x x))
+                   (x4 (* x2 x2))
+                   (x8 (* x4 x4)))
+                (* x8 x2)))
+'''
+
+        result = eval_expression('(tenth-power 2)', file_text=input_text)
+
+        expected = treewalker.IntValue(1024)
+        self.assertEqual(expected, result)
+
 
 def eval_expression(text, file_text=None, use_lowering=True):
     expression = parse_expression(text)

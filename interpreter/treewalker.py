@@ -102,7 +102,21 @@ class Interpreter:
             assert(isinstance(lhs, StructValue))
             return lhs.access(expression.field)
         elif isinstance(expression, syntax.ELet):
-            pass # TODO
+            let_scope = Scope(parent=scope)
+            # Bind all variables in the same scope.  This allows bindings to
+            # refer to themselves so they can be recursive functions.
+            for binding in expression.bindings:
+                # Start values off as None so that the Scope can exist prior to
+                # computing the values
+                let_scope.add_variable(binding.name, None)
+
+            # Actually evaluate the bound expressions, in order
+            for binding in expression.bindings:
+                value = self._eval_expression(function_name, let_scope, binding.value)
+                let_scope.update(binding.name, value)
+
+            # Finally, evaluate the body that uses the new scope
+            return self._eval_expression(function_name, let_scope, expression.inner)
         elif isinstance(expression, syntax.EIf):
             test_value = self._eval_expression(function_name, scope, expression.test)
             assert(isinstance(test_value, BoolValue))
@@ -151,6 +165,13 @@ class Interpreter:
             assert(isinstance(arg_values[0], IntValue))
             assert(isinstance(arg_values[1], IntValue))
             result_value = arg_values[0].value - arg_values[1].value
+            return IntValue(result_value)
+        elif name == '*':
+            assert(len(arg_values) == 2)
+            # TODO: handle other types
+            assert(isinstance(arg_values[0], IntValue))
+            assert(isinstance(arg_values[1], IntValue))
+            result_value = arg_values[0].value * arg_values[1].value
             return IntValue(result_value)
         elif name == '<':
             assert(len(arg_values) == 2)
