@@ -3,7 +3,6 @@ import unittest
 from interpreter import syntax
 from interpreter import types
 from interpreter.parser import (
-    ParseResult,
     _parse_class_definition,
     _parse_expression,
     _parse_function_declaration,
@@ -14,6 +13,7 @@ from interpreter.parser import (
     _parse_type,
     parse,
 )
+from interpreter import program
 
 
 class ParserTest(unittest.TestCase):
@@ -484,7 +484,8 @@ class ParserTest(unittest.TestCase):
             ]
         )
 
-        expected = ParseResult(
+        expected = program.Program(
+            from_stage='parser',
             functions=[step_all],
             structs=[pair_struct],
             classes=[steppable],
