@@ -490,6 +490,9 @@ class ClassDef:
             o.methods == self.methods
         )
 
+    def class_name(self):
+        return self.tclass.name
+
     def to_lisp(self):
         lisp = ['class', [self.tclass.to_lisp(), self.tvar.to_lisp()]]
         if len(self.supers) > 0:
