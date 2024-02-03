@@ -18,6 +18,13 @@ class Program:
         self.classes = classes
         self.instances = instances
 
+    def to_lisp(self):
+        lisp = [f.to_lisp() for f in self.functions]
+        lisp += [s.to_lisp() for s in self.structs]
+        lisp += [c.to_lisp() for c in self.classes]
+        lisp += [i.to_lisp() for i in self.instances]
+        return lisp
+
     def __eq__(self, o):
         return (
             isinstance(o, Program) and

@@ -4,6 +4,7 @@ from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
 from interpreter import types
+from interpreter.program import Program
 
 
 class TestLowering(unittest.TestCase):
@@ -785,7 +786,7 @@ class TestLowering(unittest.TestCase):
 
 
 def parse_output(text):
-    ''' Parse a LoweringOutput.
+    ''' Parse a Program that's the result of lowering.
 
     This allows expressing the expected output as program text.
 
@@ -808,9 +809,12 @@ def parse_output(text):
             struct = parser._parse_struct_definition(sexpr)
             dictionaries.append(struct)
 
-    return lowering.LoweringOutput(
-        declarations=declarations,
-        dictionaries=dictionaries
+    return Program(
+        from_stage='lowering',
+        functions=declarations,
+        structs=dictionaries,
+        classes=[],
+        instances=[]
     )
 
 
@@ -834,13 +838,7 @@ def show_result(result):
 
 def make_lowering_input(text):
     parse_result = parser.parse(text)
-
-    return lowering.LoweringInput(
-        declarations=parse_result.functions,
-        structs=parse_result.structs,
-        classes=parse_result.classes,
-        instances=parse_result.instances,
-    )
+    return lowering.LoweringInput(parse_result)
 
 if __name__ == '__main__':
     unittest.main()

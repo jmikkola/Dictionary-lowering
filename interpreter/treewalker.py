@@ -8,6 +8,7 @@ This is a tree-walking interpreter
 from interpreter import builtin
 from interpreter import syntax
 from interpreter import types
+from interpreter.program import Program
 
 
 class InterpreterError(RuntimeError):
@@ -30,6 +31,13 @@ class Interpreter:
         self.structs = {}
 
         self.builtin = set(builtin.NAMES)
+
+    def load_program(self, program):
+        assert(isinstance(program, Program))
+        assert(program.classes == [])
+        assert(program.instances == [])
+        self.load_structs(program.structs)
+        self.load_declarations(program.functions)
 
     def load_structs(self, structs):
         ''' Add struct definitions to the interpreter '''

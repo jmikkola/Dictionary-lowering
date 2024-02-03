@@ -35,18 +35,20 @@ from interpreter.types import (
     match, make_function_type, require_function_type,
 )
 
+from interpreter.program import Program
+
 
 class LoweringInput:
     ''' This contains the inputs to the lowering pass '''
 
-    def __init__(self, declarations: list, structs: list, classes: list, instances: list):
-        self.declarations = declarations
-        self.structs = structs
-        self.classes = classes
-        self.instances = instances
+    def __init__(self, program: Program):
+        self.declarations = program.functions
+        self.structs = program.structs
+        self.classes = program.classes
+        self.instances = program.instances
 
     def lower(self):
-        ''' returns a LoweringOutput containing the results '''
+        ''' returns a Program containing the results '''
         context = Context.build(self.classes, self.instances, self.declarations)
 
         dictionary_functions = [
@@ -64,9 +66,12 @@ class LoweringInput:
             for class_def in self.classes
         ]
 
-        return LoweringOutput(
-            dictionary_functions + lowered_declarations,
-            dictionaries + self.structs
+        return Program(
+            from_stage='lowering',
+            functions=dictionary_functions + lowered_declarations,
+            structs=dictionaries + self.structs,
+            classes=[],
+            instances=[],
         )
 
     def _make_dictionary(self, class_def):
@@ -432,33 +437,6 @@ class LoweringInput:
             return access
 
         return EPartial(t, access, dictionary_args)
-
-
-class LoweringOutput:
-    ''' The output of the lowering pass '''
-
-    # declarations: list[Declaration], dictionaries: list[StructDef]
-    def __init__(self, declarations: list, dictionaries: list):
-        self.declarations = declarations
-        self.dictionaries = dictionaries
-
-    def __eq__(self, o):
-        return (
-            isinstance(o, LoweringOutput) and
-            o.declarations == self.declarations and
-            o.dictionaries == self.dictionaries
-        )
-
-    def __str__(self):
-        return repr(self)
-
-    def __repr__(self):
-        return f'LoweringOutput({repr(self.declarations)}, {repr(self.dictionaries)})'
-
-    def to_lisp(self):
-        lisp = [d.to_lisp() for d in self.declarations]
-        lisp += [s.to_lisp() for s in self.dictionaries]
-        return lisp
 
 
 class Method:

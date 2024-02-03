@@ -9,13 +9,7 @@ def main(args):
 
     parse_result = parser.parse(text)
 
-    lowering_input = lowering.LoweringInput(
-        declarations=parse_result.functions,
-        structs=parse_result.structs,
-        classes=parse_result.classes,
-        instances=parse_result.instances,
-    )
-
+    lowering_input = lowering.LoweringInput(parse_result)
     lowering_output = lowering_input.lower()
 
     if '--render' in args:
@@ -28,8 +22,7 @@ def main(args):
 
     else:
         intp = treewalker.Interpreter()
-        intp.load_declarations(lowering_output.declarations)
-        intp.load_structs(lowering_output.dictionaries)
+        intp.load_program(lowering_output)
         intp.eval_main()
 
 

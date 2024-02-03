@@ -276,15 +276,9 @@ def eval_expression(text, file_text=None, use_lowering=True):
     if file_text is not None:
         parsed = parser.parse(file_text)
         if use_lowering:
-            lowering_input = lowering.LoweringInput(
-                parsed.functions,
-                parsed.structs,
-                parsed.classes,
-                parsed.instances
-            )
+            lowering_input = lowering.LoweringInput(parsed)
             lowering_output = lowering_input.lower()
-            intp.load_declarations(lowering_output.declarations)
-            intp.load_structs(lowering_output.dictionaries)
+            intp.load_program(lowering_output)
         else:
             intp.load_declarations(parsed.functions)
             intp.load_structs(parsed.structs)
