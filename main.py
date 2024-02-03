@@ -1,3 +1,4 @@
+from interpreter import check
 from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
@@ -8,8 +9,9 @@ def main(args):
         text = inf.read()
 
     parse_result = parser.parse(text)
+    check_result = check.check(parse_result)
 
-    lowering_input = lowering.LoweringInput(parse_result)
+    lowering_input = lowering.LoweringInput(check_result)
     lowering_output = lowering_input.lower()
 
     if '--render' in args:

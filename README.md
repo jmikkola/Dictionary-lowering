@@ -55,8 +55,8 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 
 - Add a type check pass after the lowering is done to sanity-check the output (assuming this isn't
   also used for the input, this would only need to handle functions and structs).
-- Add a check pass to sanity-check the input (e.g. no duplicate class definitions or method
-  arguments, classes and types referenced actually exist, etc).
+- [in progress] Add a check pass to sanity-check the input (e.g. no duplicate class definitions or
+  method arguments, classes and types referenced actually exist, etc).
 - Add a type inference pass (so the input doesn't have to be fully annotated with types)
 - Add enum/tagged untion types (e.g. Some(x) | None)
 
