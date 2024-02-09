@@ -1,6 +1,7 @@
 import unittest
 
-from graph import topological_order
+from interpreter.graph import topological_order
+
 
 class GraphTest(unittest.TestCase):
     def test_topological_order(self):
@@ -18,6 +19,7 @@ class GraphTest(unittest.TestCase):
                 ('a', 'b'),
             ]),
         )
+
 
 if __name__ == '__main__':
     unittest.main()
