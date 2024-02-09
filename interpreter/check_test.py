@@ -15,9 +15,9 @@ class CheckTest(unittest.TestCase):
     def test_duplicate_class_definitions(self):
         text = '''
 (class (Show s)
-  (:: show (Fn s String)))
+  (:: show1 (Fn s String)))
 (class (Show s)
-  (:: show (Fn s String)))
+  (:: show2 (Fn s String)))
 '''
         self.assert_error(text, 'Duplicate classes named Show')
 
@@ -45,6 +45,49 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Class hierarchy cannot be cyclic')
 
+    def test_class_methods_must_contain_class_type_variable(self):
+        text = '''
+(class (ClassA a)
+  (:: foo (Fn Int (List a))))
+'''
+        self.assert_no_error(text)
+
+        text = '''
+(class (ClassA a)
+  (:: foo (Fn Int (List b))))
+'''
+        self.assert_error(text, 'Method foo on class ClassA must reference the class type variable')
+
+    def test_duplicate_method_names_between_functions(self):
+        text = '''
+(fn f (x) x)
+(fn f (x) x)
+'''
+        self.assert_error(text, 'Duplicate method name f')
+
+    def test_duplicate_method_names_between_functions_and_classes(self):
+        text = '''
+(fn f (x) x)
+(class (ClassA a)
+  (:: f (Fn Int (List a))))
+'''
+        self.assert_error(text, 'Duplicate method name f')
+
+    def test_duplicate_method_names_between_classes(self):
+        text = '''
+(class (ClassA a)
+  (:: f (Fn Int (List a))))
+(class (ClassB a)
+  (:: f (Fn Int (List a))))
+'''
+        self.assert_error(text, 'Duplicate method name f')
+
+    def test_duplicate_args_in_functions(self):
+        text = '''
+(fn f (a b a) a)
+'''
+        self.assert_error(text, 'Duplicate argument a in function f')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 
@@ -60,5 +103,3 @@ class CheckTest(unittest.TestCase):
         except check.CheckFailure as e:
             return e
         return None
-
-

@@ -9,11 +9,13 @@ def check(program: Program):
     before any type or lowering passes'''
 
     # TODO:
-    # - check for duplicate top-level declarations (classes, functions)
     # - check for overlapping instances
     # - check for duplicate arg definitions (in functions and lambdas)
     # - check for duplicate variable definitions (in let bindings)
     # - check for references to undefined classes, types, functions, or variables
+    # - check that instances implement the right methods (name and arg count) for their class
+    # - check that types reference defined type constructors
+    # - check that variables reference something that is defined?
     checker = Checker(program)
     checker.check()
 
@@ -37,20 +39,32 @@ class Checker:
         self.program = program
 
     def check(self):
-        self._check_function_names(
-            self.program.functions,
-            self.program.classes
-        )
         self._check_functions(self.program.functions)
         self._check_structs(self.program.structs)
         self._check_classes(self.program.classes)
         self._check_instances(self.program.instances)
+        self._check_function_names(
+            self.program.functions,
+            self.program.classes
+        )
 
     def _check_function_names(self, functions, classes):
-        pass
+        function_names = [f.name for f in functions]
+        method_names = [m.method_name for c in classes for m in c.methods]
+        self._assert_unique(
+            function_names + method_names,
+            lambda name: CheckFailure(f'Duplicate method name {name}')
+        )
 
     def _check_functions(self, functions):
-        pass
+        for f in functions:
+            self._check_function(f)
+
+    def _check_function(self, function):
+        self._assert_unique(
+            function.arg_names,
+            lambda name: CheckFailure(f'Duplicate argument {name} in function {function.name}')
+        )
 
     def _check_structs(self, structs):
         pass
@@ -83,8 +97,16 @@ class Checker:
             lambda name: CheckFailure(f'Duplicate method {name} for class {c.class_name()}')
         )
 
-        # TODO: assert that the methods types contain the class's type variable
+        for m in c.methods:
+            self._check_class_method(c, m)
 
+    def _check_class_method(self, c, m):
+        method_type = m.get_type()
+        self._check_type(method_type)
+
+        ftvs = method_type.free_type_vars()
+        if c.tvar not in ftvs:
+            raise CheckFailure(f'Method {m.method_name} on class {c.class_name()} must reference the class type variable')
 
     def _check_instances(self, instances):
         pass
