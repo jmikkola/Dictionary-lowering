@@ -1,6 +1,7 @@
 # module check
 
 from interpreter.program import Program
+from interpreter import graph
 
 
 def check(program: Program):
@@ -63,7 +64,13 @@ class Checker:
         for c in classes:
             self._check_class(c)
 
-        # TODO: assert class hierarchy is acyclic
+        class_deps = []
+        for c in classes:
+            for s in c.supers:
+                class_deps.append((c.class_name(), s.name))
+        result = graph.topological_order(class_deps)
+        if result is False:
+            raise CheckFailure(f'Class hierarchy cannot be cyclic')
 
     def _check_class(self, c):
         self._assert_unique(

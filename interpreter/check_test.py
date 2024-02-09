@@ -37,6 +37,14 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Duplicate super class Ord for class MyClass')
 
+    def test_cyclic_class_hierarchy(self):
+        text = '''
+(class (ClassA a) superclasses (ClassB))
+(class (ClassB a) superclasses (ClassC))
+(class (ClassC a) superclasses (ClassA))
+'''
+        self.assert_error(text, 'Class hierarchy cannot be cyclic')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 
