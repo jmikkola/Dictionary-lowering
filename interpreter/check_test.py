@@ -159,6 +159,23 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'struct Bar has multiple fields named foo')
 
+    def test_overlapping_instances(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (ToInt (Pair Int b))
+  (fn toInt (pair) 0))
+
+(instance (ToInt (Pair a String))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'Instances (Pair Int b) and (Pair a String) for ToInt overlap')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 

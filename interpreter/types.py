@@ -238,6 +238,19 @@ class TypeError(RuntimeError):
     pass
 
 
+def can_types_unify(l: Type, r: Type) -> bool:
+    try:
+        most_general_unifier(l, r)
+        return True
+    except TypeError:
+        return False
+
+
+def most_general_unifier(l: Type, r: Type) -> Substitution:
+    # TODO: an actual implementation
+    return Substitution.empty()
+
+
 def match(l: Type, r: Type) -> Substitution:
     '''
     Returns a substitution that, if applied to `l`, will result in `r`.

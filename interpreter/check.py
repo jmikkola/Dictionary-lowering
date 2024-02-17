@@ -1,10 +1,12 @@
 # module check
 
+from collections import defaultdict
 from typing import Set
 
 from interpreter import builtin
 from interpreter import graph
 from interpreter import syntax
+from interpreter import types
 from interpreter.program import Program
 
 
@@ -17,7 +19,6 @@ def check(program: Program):
     #     - Reference a valid type (requires defining the built-in type names)
     #     - Reference a valid class
     #     - Match methods by name and number of args
-    #     - Don't overlap with each other
     # - Check types:
     #     - Check for references to undefined type constructors or variables
     #     - Check for zero-arg function types
@@ -172,13 +173,30 @@ class Checker:
     def _check_instances(self, instances):
         for inst in instances:
             self._check_instance(inst)
-        # TODO: check for overlapping instances for the same class
+
+        instances_by_class = defaultdict(list)
+        for inst in instances:
+            instances_by_class[inst.get_class().name].append(inst)
+
+        for (classname, insts_for_class) in instances_by_class.items():
+            self._check_instance_overlap(classname, insts_for_class)
 
     def _check_instance(self, instance):
         # TODO: check for a valid instance
 
         for method in instance.method_impls:
             self._check_function(method)
+
+    def _check_instance_overlap(self, classname, insts_for_class):
+        # Check all pairwise combinations
+        for i in range(len(insts_for_class) - 1):
+            type_i = insts_for_class[i].get_type()
+            for j in range(i + 1, len(insts_for_class)):
+                type_j = insts_for_class[j].get_type()
+                if types.can_types_unify(type_i, type_j):
+                    ti = syntax.render_lisp(type_i.to_lisp())
+                    tj = syntax.render_lisp(type_j.to_lisp())
+                    raise CheckFailure(f'Instances {ti} and {tj} for {classname} overlap')
 
     def _check_expression(self, expr, scope):
         self._check_type(expr.get_type())
