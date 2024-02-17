@@ -22,7 +22,8 @@ class TypeVariable:
 
 
 class Type:
-    pass
+    def free_type_vars(self):
+        raise NotImplementedError
 
 
 class TVariable(Type):
@@ -218,6 +219,7 @@ class Substitution:
 
     # other: Substitution
     def merge(self, other):
+        assert(isinstance(other, Substitution))
         # Check if the two substitutions agree before merging
         for (tvar, t) in self.substitutions.items():
             t2 = other.get(tvar)
@@ -226,6 +228,16 @@ class Substitution:
 
         merged = {**self.substitutions, **other.substitutions}
         return Substitution(merged)
+
+    # other: Substitution
+    def compose(self, other):
+        assert(isinstance(other, Substitution))
+        new_subs = {
+            tvar: t.apply(other)
+            for (tvar, t) in self.substitutions.items()
+        }
+
+        return Substitution({**other.substitutions, **new_subs})
 
     def get(self, type_variable: TypeVariable):
         return self.substitutions.get(type_variable)
@@ -247,8 +259,42 @@ def can_types_unify(l: Type, r: Type) -> bool:
 
 
 def most_general_unifier(l: Type, r: Type) -> Substitution:
-    # TODO: an actual implementation
-    return Substitution.empty()
+    if isinstance(l, TVariable):
+        return bind_type_var(l.type_variable, r)
+
+    elif isinstance(r, TVariable):
+        return bind_type_var(r.type_variable, l)
+
+    elif isinstance(l, TConstructor):
+        if l == r:
+            return Substitution.empty()
+        # Else, fall through to the 'raise TypeError' part below
+
+    elif isinstance(l, TApplication) and isinstance(r, TApplication):
+        if len(l.args) == len(r.args):
+            substitution = most_general_unifier(l.t, r.t)
+
+            for (larg, rarg) in zip(l.args, r.args):
+                arg_substitution = most_general_unifier(
+                    larg.apply(substitution),
+                    rarg.apply(substitution)
+                )
+
+                substitution = substitution.compose(arg_substitution)
+
+            return substitution
+
+    raise TypeError(f'Cannot unify {l} and {r}')
+
+
+def bind_type_var(var: TypeVariable, t: Type) -> Substitution:
+    if t == TVariable(var):
+        return Substitution.empty()
+
+    if var in t.free_type_vars():
+        raise TypeError(f'Occurs check fails, {var} is in {t}')
+
+    return Substitution.singleton(var, t)
 
 
 def match(l: Type, r: Type) -> Substitution:
