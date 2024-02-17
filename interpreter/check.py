@@ -2,6 +2,7 @@
 
 from interpreter import builtin
 from interpreter import graph
+from interpreter import syntax
 from interpreter.program import Program
 
 
@@ -10,9 +11,6 @@ def check(program: Program):
     before any type or lowering passes'''
 
     # TODO:
-    # - Check for duplicate:
-    #     - lambda arg names
-    #     - let binding names
     # - Check expressions:
     #     - Refer to defined variables or functions (which includes class
     #     methods) (requires defining the built-in classes and functions)
@@ -50,6 +48,7 @@ class Checker:
         self.global_scope.define_all(builtin.NAMES)
 
         self.defined_types = set(builtin.TYPES)
+        self.struct_types = set()
 
     def check(self):
         type_names = self._check_declaration_names(
@@ -64,8 +63,10 @@ class Checker:
         )
         self.global_scope.define_all(function_names)
 
+        struct_names = self._check_structs(self.program.structs)
+        self.struct_types |= set(struct_names)
+
         self._check_functions(self.program.functions)
-        self._check_structs(self.program.structs)
         self._check_classes(self.program.classes)
         self._check_instances(self.program.instances)
 
@@ -104,16 +105,23 @@ class Checker:
             self._check_function(f)
 
     def _check_function(self, function):
+        self._check_valid_name('function', function.name)
+
         self._assert_unique(
             function.arg_names,
             lambda name: CheckFailure(f'Duplicate argument {name} in function {function.name}')
         )
 
-        self._check_valid_name('function', function.name)
+        scope = self.global_scope.make_inner()
+        scope.define_all(function.arg_names)
+
+        self._check_expression(function.body, scope)
 
     def _check_structs(self, structs):
         for s in structs:
             self._check_struct(s)
+
+        return [s.name for s in structs]
 
     def _check_struct(self, struct):
         self._assert_unique(
@@ -165,6 +173,7 @@ class Checker:
     def _check_instances(self, instances):
         for inst in instances:
             self._check_instance(inst)
+        # TODO: check for overlapping instances for the same class
 
     def _check_instance(self, instance):
         # TODO: check for a valid instance
@@ -173,7 +182,62 @@ class Checker:
             self._check_function(method)
 
     def _check_expression(self, expr, scope):
-        pass
+        self._check_type(expr.get_type())
+
+        if isinstance(expr, syntax.EVariable):
+            if not scope.is_defined(expr.name):
+                raise CheckFailure(f'Undefined variable {expr.name}')
+
+        elif isinstance(expr, syntax.ELiteral):
+            return
+
+        elif isinstance(expr, syntax.ECall):
+            self._check_expression(expr.f_expr, scope)
+            for a in expr.arg_exprs:
+                self._check_expression(a, scope)
+
+        elif isinstance(expr, syntax.EConstruct):
+            if expr.struct_name not in self.struct_types:
+                raise CheckFailure(f'Cannot find struct named {expr.struct_name}')
+            for a in expr.arg_exprs:
+                self._check_expression(a, scope)
+
+        elif isinstance(expr, syntax.EPartial):
+            self._check_expression(expr.f_expr, scope)
+            for a in expr.arg_exprs:
+                self._check_expression(a, scope)
+
+        elif isinstance(expr, syntax.EAccess):
+            self._check_expression(expr.lhs, scope)
+
+        elif isinstance(expr, syntax.ELet):
+            names = [binding.name for binding in expr.bindings]
+            self._assert_unique(
+                names,
+                lambda name: CheckFailure(f'Duplicate name {name} in let binding')
+            )
+            inner_scope = scope.make_inner()
+            inner_scope.define_all(names)
+            for binding in bindings:
+                self._check_expression(binding.value, inner_scope)
+            self._check_expression(expr.inner, inner_scope)
+
+        elif isinstance(expr, syntax.EIf):
+            self._check_expression(expr.test, scope)
+            self._check_expression(expr.if_case, scope)
+            self._check_expression(expr.else_case, scope)
+
+        elif isinstance(expr, syntax.ELambda):
+            self._assert_unique(
+                expr.arg_names,
+                lambda name: CheckFailure(f'Duplicate name {name} in lambda function')
+            )
+            inner_scope = scope.make_inner()
+            inner_scope.define_all(expr.arg_names)
+            self._check_expression(expr.body, inner_scope)
+
+        else:
+            raise RuntimeError(f'Unhandled expression: {e}')
 
     def _check_type(self, t):
         pass
@@ -209,3 +273,6 @@ class Scope:
         if self.parent is not None:
             return self.parent.is_defined(name)
         return False
+
+    def make_inner(self):
+        return Scope(parent=self)

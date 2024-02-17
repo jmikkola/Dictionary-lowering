@@ -99,6 +99,36 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Duplicate argument a in function f')
 
+    def test_duplicate_args_in_instance_method(self):
+        text = '''
+(class (ClassA a)
+  (:: foo (Fn a a Int)))
+(instance (ClassA Int)
+  (fn foo (x x) (* 2 x)))
+'''
+        self.assert_error(text, 'Duplicate argument x in function foo')
+
+    def test_duplicate_args_in_lambda(self):
+        text = '''
+(fn mul (x)
+  (\ (y y) (+ y (* y x))))
+'''
+        self.assert_error(text, 'Duplicate argument y in lambda function')
+
+    def test_duplicate_args_in_lambda(self):
+        text = '''
+(fn mul (x)
+  (let ((y 1) (y 2)) (+ y (* y x))))
+'''
+        self.assert_error(text, 'Duplicate name y in let binding')
+
+    def test_refers_to_undefined_variable(self):
+        text = '''
+(fn foo (x)
+  (+ x y))
+'''
+        self.assert_error(text, 'Undefined variable y')
+
     def test_struct_and_class_with_same_name(self):
         text = '''
 (class (ClassA a)
