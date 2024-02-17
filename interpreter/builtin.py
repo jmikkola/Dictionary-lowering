@@ -21,3 +21,12 @@ NAMES = [
     'print',
     'str',
 ]
+
+TYPES = [
+    'Int',
+    'Float',
+    'String',
+    'Fn',
+    'Void',
+    'Bool',
+]

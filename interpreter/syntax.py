@@ -490,6 +490,9 @@ class ClassDef:
             o.methods == self.methods
         )
 
+    def method_names(self):
+        return set(m.method_name for m in self.methods)
+
     def class_name(self):
         return self.tclass.name
 
@@ -509,6 +512,7 @@ class ClassDef:
 
 
 class InstanceDef:
+    # method_name: list[DFunction]
     def __init__(self, qual_pred: Qualified, method_impls: list):
         self.qual_pred = qual_pred
         self.method_impls = method_impls

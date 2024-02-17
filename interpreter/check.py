@@ -1,7 +1,8 @@
 # module check
 
-from interpreter.program import Program
+from interpreter import builtin
 from interpreter import graph
+from interpreter.program import Program
 
 
 def check(program: Program):
@@ -45,35 +46,58 @@ class Checker:
     def __init__(self, program: Program):
         self.program = program
 
+        self.global_scope = Scope()
+        self.global_scope.define_all(builtin.NAMES)
+
+        self.defined_types = set(builtin.TYPES)
+
     def check(self):
+        type_names = self._check_declaration_names(
+            self.program.classes,
+            self.program.structs
+        )
+        self.defined_types |= set(type_names)
+
+        function_names = self._check_function_names(
+            self.program.functions,
+            self.program.classes
+        )
+        self.global_scope.define_all(function_names)
+
         self._check_functions(self.program.functions)
         self._check_structs(self.program.structs)
         self._check_classes(self.program.classes)
         self._check_instances(self.program.instances)
-        self._check_function_names(
-            self.program.functions,
-            self.program.classes
-        )
-        self._check_declaration_names(
-            self.program.classes,
-            self.program.structs
-        )
 
     def _check_function_names(self, functions, classes):
         function_names = [f.name for f in functions]
-        method_names = [m.method_name for c in classes for m in c.methods]
+        method_names = [name for c in classes for name in c.method_names()]
+        names = function_names + method_names
         self._assert_unique(
-            function_names + method_names,
+            names,
             lambda name: CheckFailure(f'Duplicate method name {name}')
         )
+
+        for name in names:
+            if name in builtin.NAMES:
+                raise CheckFailure(f'Cannot redefine the builtin {name}')
+
+        return names
 
     def _check_declaration_names(self, classes, structs):
         class_names = [c.class_name() for c in classes]
         struct_names = [s.name for s in structs]
+        names = class_names + struct_names
         self._assert_unique(
-            class_names + struct_names,
+            names,
             lambda name: CheckFailure(f'Duplicate declaration name {name}')
         )
+
+        for name in names:
+            if name in builtin.TYPES:
+                raise CheckFailure(f'Cannot redefine the builtin type {name}')
+
+        return names
 
     def _check_functions(self, functions):
         for f in functions:
@@ -139,9 +163,16 @@ class Checker:
             raise CheckFailure(f'Method {m.method_name} on class {c.class_name()} must reference the class type variable')
 
     def _check_instances(self, instances):
-        pass
+        for inst in instances:
+            self._check_instance(inst)
 
-    def _check_expression(self, expr):
+    def _check_instance(self, instance):
+        # TODO: check for a valid instance
+
+        for method in instance.method_impls:
+            self._check_function(method)
+
+    def _check_expression(self, expr, scope):
         pass
 
     def _check_type(self, t):
@@ -158,3 +189,23 @@ class Checker:
             if name in seen:
                 raise make_error(name)
             seen.add(name)
+
+
+class Scope:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.names = set()
+
+    def define(self, name):
+        self.names.add(name)
+
+    def define_all(self, names):
+        for name in names:
+            self.define(name)
+
+    def is_defined(self, name):
+        if name in self.names:
+            return True
+        if self.parent is not None:
+            return self.parent.is_defined(name)
+        return False

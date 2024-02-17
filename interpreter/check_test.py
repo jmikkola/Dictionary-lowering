@@ -19,7 +19,7 @@ class CheckTest(unittest.TestCase):
 (class (Show s)
   (:: show2 (Fn s String)))
 '''
-        self.assert_error(text, 'Duplicate classes named Show')
+        self.assert_error(text, 'Duplicate declaration name Show')
 
     def test_checks_class_with_duplicate_method(self):
         text = '''
