@@ -88,6 +88,21 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Duplicate argument a in function f')
 
+    def test_struct_and_class_with_same_name(self):
+        text = '''
+(class (ClassA a)
+  (:: f (Fn Int (List a))))
+(struct ClassA
+  (:: foo Int))
+'''
+        self.assert_error(text, 'Duplicate declaration name ClassA')
+
+    def test_disallows_functions_names_starting_with_uppercase(self):
+        text = '''
+(fn Foo (a) a)
+'''
+        self.assert_error(text, 'function names must start with a lowercase letter, found Foo')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 

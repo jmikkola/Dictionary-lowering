@@ -9,13 +9,21 @@ def check(program: Program):
     before any type or lowering passes'''
 
     # TODO:
-    # - check for overlapping instances
-    # - check for duplicate arg definitions (in functions and lambdas)
-    # - check for duplicate variable definitions (in let bindings)
-    # - check for references to undefined classes, types, functions, or variables
-    # - check that instances implement the right methods (name and arg count) for their class
-    # - check that types reference defined type constructors
-    # - check that variables reference something that is defined?
+    # - Check for duplicate:
+    #     - struct fields
+    #     - lambda arg names
+    #     - let binding names
+    # - Check expressions:
+    #     - Refer to defined variables or functions (which includes class
+    #     methods) (requires defining the built-in classes and functions)
+    # - Check instances:
+    #     - Reference a valid type (requires defining the built-in type names)
+    #     - Reference a valid class
+    #     - Match methods by name and number of args
+    #     - Don't overlap with each other
+    # - Check types:
+    #     - Check for references to undefined type constructors or variables
+    #     - Check for zero-arg function types
     checker = Checker(program)
     checker.check()
 
@@ -47,6 +55,10 @@ class Checker:
             self.program.functions,
             self.program.classes
         )
+        self._check_declaration_names(
+            self.program.classes,
+            self.program.structs
+        )
 
     def _check_function_names(self, functions, classes):
         function_names = [f.name for f in functions]
@@ -54,6 +66,14 @@ class Checker:
         self._assert_unique(
             function_names + method_names,
             lambda name: CheckFailure(f'Duplicate method name {name}')
+        )
+
+    def _check_declaration_names(self, classes, structs):
+        class_names = [c.class_name() for c in classes]
+        struct_names = [s.name for s in structs]
+        self._assert_unique(
+            class_names + struct_names,
+            lambda name: CheckFailure(f'Duplicate declaration name {name}')
         )
 
     def _check_functions(self, functions):
@@ -65,6 +85,8 @@ class Checker:
             function.arg_names,
             lambda name: CheckFailure(f'Duplicate argument {name} in function {function.name}')
         )
+
+        self._check_valid_name('function', function.name)
 
     def _check_structs(self, structs):
         pass
@@ -116,6 +138,11 @@ class Checker:
 
     def _check_type(self, t):
         pass
+
+    def _check_valid_name(self, name_kind, name):
+        first_letter = name[0]
+        if not first_letter.isalpha() or not first_letter.islower():
+            raise CheckFailure(f'{name_kind} names must start with a lowercase letter, found {name}')
 
     def _assert_unique(self, names, make_error):
         seen = set()
