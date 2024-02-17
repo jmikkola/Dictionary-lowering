@@ -19,9 +19,6 @@ def check(program: Program):
     #     - Reference a valid type (requires defining the built-in type names)
     #     - Reference a valid class
     #     - Match methods by name and number of args
-    # - Check types:
-    #     - Check for references to undefined type constructors or variables
-    #     - Check for zero-arg function types
     checker = Checker(program)
     checker.check()
 
@@ -47,15 +44,21 @@ class Checker:
         self.global_scope = Scope()
         self.global_scope.define_all(builtin.NAMES)
 
+        # defined_types: all types that are valid to use in a type constructor (e.g. Int, Fn, structs)
         self.defined_types = set(builtin.TYPES)
+        # struct_types: types that can be constructed with 'new' (a subset of defined_types)
         self.struct_types = set()  # type: Set[str]
+        # class_types: names of typeclasses
+        self.class_types = set()  # type: Set[str]
 
     def check(self):
-        type_names = self._check_declaration_names(
+        (class_names, struct_names) = self._check_declaration_names(
             self.program.classes,
             self.program.structs
         )
-        self.defined_types |= set(type_names)
+        self.defined_types |= set(struct_names)
+        self.class_types |= set(class_names)
+        self.struct_types |= set(struct_names)
 
         function_names = self._check_function_names(
             self.program.functions,
@@ -63,9 +66,7 @@ class Checker:
         )
         self.global_scope.define_all(function_names)
 
-        struct_names = self._check_structs(self.program.structs)
-        self.struct_types |= set(struct_names)
-
+        self._check_structs(self.program.structs)
         self._check_functions(self.program.functions)
         self._check_classes(self.program.classes)
         self._check_instances(self.program.instances)
@@ -98,7 +99,7 @@ class Checker:
             if name in builtin.TYPES:
                 raise CheckFailure(f'Cannot redefine the builtin type {name}')
 
-        return names
+        return (class_names, struct_names)
 
     def _check_functions(self, functions):
         for f in functions:
@@ -106,6 +107,7 @@ class Checker:
 
     def _check_function(self, function):
         self._check_valid_name('function', function.name)
+        self._check_type(function.t)
 
         self._assert_unique(
             function.arg_names,
@@ -120,8 +122,6 @@ class Checker:
     def _check_structs(self, structs):
         for s in structs:
             self._check_struct(s)
-
-        return [s.name for s in structs]
 
     def _check_struct(self, struct):
         self._assert_unique(
@@ -257,7 +257,59 @@ class Checker:
             raise RuntimeError(f'Unhandled expression: {expr}')
 
     def _check_type(self, t):
-        pass
+        if t is None:
+            return
+
+        if isinstance(t, types.Qualified):
+            self._check_qualified(t)
+            return
+
+        if isinstance(t, types.Predicate):
+            self._check_predicate(t)
+            return
+
+        assert(isinstance(t, types.Type))
+
+        if isinstance(t, types.TVariable):
+            # Type variables aren't declared before they are used, so any type
+            # variable is a valid part of a type
+            return
+        elif isinstance(t, types.TConstructor):
+            if t.type_name not in self.defined_types:
+                raise CheckFailure(f'Undefined type {t.type_name}')
+        elif isinstance(t, types.TApplication):
+            self._check_type(t.t)
+            for a in t.args:
+                self._check_type(a)
+            if t.t == types.TConstructor('Fn'):
+                if len(t.args) == 0:
+                    raise CheckFailure('Function types must always have a return type')
+
+    def _check_qualified(self, qualified):
+        type_vars = qualified.t.free_type_vars()
+
+        for pred in qualified.predicates:
+            self._check_predicate(pred)
+
+            # Ensure the predicate is applied to a type variable, not a concrete type
+            if not isinstance(pred.t, types.TVariable):
+                p = show_lisp(pred)
+                raise CheckFailure(f'The predicate {p} applies a predicate to a concrete type')
+
+            # Ensure that the predicate actually applies to some part of the type
+            tv = pred.t.type_variable
+            if tv not in type_vars:
+                p = show_lisp(pred)
+                t = show_lisp(qualified.t)
+                raise CheckFailure(f'The predicate {p} does not apply to the type {t}')
+
+        self._check_type(qualified.t)
+
+    def _check_predicate(self, predicate):
+        classname = predicate.tclass.name
+        if classname not in self.class_types:
+            raise CheckFailure(f'Undefined class {classname}')
+        self._check_type(predicate.t)
 
     def _check_valid_name(self, name_kind, name):
         first_letter = name[0]
@@ -293,3 +345,7 @@ class Scope:
 
     def make_inner(self):
         return Scope(parent=self)
+
+
+def show_lisp(item):
+    return syntax.render_lisp(item.to_lisp())

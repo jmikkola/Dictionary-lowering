@@ -29,4 +29,5 @@ TYPES = [
     'Fn',
     'Void',
     'Bool',
+    'List',
 ]

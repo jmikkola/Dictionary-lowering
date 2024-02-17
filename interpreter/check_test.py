@@ -176,6 +176,61 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Instances (Pair Int b) and (Pair a String) for ToInt overlap')
 
+    def test_referring_to_type_that_does_not_exist(self):
+        text = '''
+(struct MyStruct
+  (:: field OtherType))
+'''
+        self.assert_error(text, 'Undefined type OtherType')
+
+    def test_struct_types_can_refer_to_themselves(self):
+        text = '''
+(struct MyStruct
+  (:: field MyStruct))
+'''
+        self.assert_no_error(text)
+
+    def test_predicate_class_does_not_exist(self):
+        text = '''
+(fn foo (x)
+  (=> ((SomeClass a)) (Fn a String))
+  "result")
+'''
+        self.assert_error(text, 'Undefined class SomeClass')
+
+    def test_accepts_valid_predicate(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(fn foo (x)
+  (=> ((ToInt t)) (Fn t Int))
+  0)
+'''
+        self.assert_no_error(text)
+
+    def test_predicate_for_concrete_type(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(fn foo (x)
+  (=> ((ToInt Int)) (Fn y Int))
+  0)
+'''
+        self.assert_error(text, 'The predicate (ToInt Int) applies a predicate to a concrete type')
+
+    def test_predicate_for_unused_variable(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(fn foo (x)
+  (=> ((ToInt t)) (Fn y Int))
+  0)
+'''
+        self.assert_error(text, 'The predicate (ToInt t) does not apply to the type (Fn y Int)')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 
