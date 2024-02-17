@@ -52,6 +52,12 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Class hierarchy cannot be cyclic')
 
+    def test_undefined_superclass(self):
+        text = '''
+(class (ClassA a) superclasses (ClassB))
+'''
+        self.assert_error(text, 'Undefined class ClassB')
+
     def test_class_methods_must_contain_class_type_variable(self):
         text = '''
 (class (ClassA a)

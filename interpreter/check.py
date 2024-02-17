@@ -154,6 +154,10 @@ class Checker:
             lambda name: CheckFailure(f'Duplicate super class {name} for class {c.class_name()}')
         )
 
+        for s in c.supers:
+            if not s.name in self.class_types:
+                raise CheckFailure(f'Undefined class {s.name}')
+
         self._assert_unique(
             (m.method_name for m in c.methods),
             lambda name: CheckFailure(f'Duplicate method {name} for class {c.class_name()}')
