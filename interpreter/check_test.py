@@ -115,7 +115,7 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Duplicate argument y in lambda function')
 
-    def test_duplicate_args_in_lambda(self):
+    def test_duplicate_names_in_let_binding(self):
         text = '''
 (fn mul (x)
   (let ((y 1) (y 2)) (+ y (* y x))))

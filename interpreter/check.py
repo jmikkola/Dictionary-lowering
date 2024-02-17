@@ -1,5 +1,7 @@
 # module check
 
+from typing import Set
+
 from interpreter import builtin
 from interpreter import graph
 from interpreter import syntax
@@ -48,7 +50,7 @@ class Checker:
         self.global_scope.define_all(builtin.NAMES)
 
         self.defined_types = set(builtin.TYPES)
-        self.struct_types = set()
+        self.struct_types = set()  # type: Set[str]
 
     def check(self):
         type_names = self._check_declaration_names(
@@ -218,7 +220,7 @@ class Checker:
             )
             inner_scope = scope.make_inner()
             inner_scope.define_all(names)
-            for binding in bindings:
+            for binding in expr.bindings:
                 self._check_expression(binding.value, inner_scope)
             self._check_expression(expr.inner, inner_scope)
 
@@ -230,14 +232,14 @@ class Checker:
         elif isinstance(expr, syntax.ELambda):
             self._assert_unique(
                 expr.arg_names,
-                lambda name: CheckFailure(f'Duplicate name {name} in lambda function')
+                lambda name: CheckFailure(f'Duplicate argument {name} in lambda function')
             )
             inner_scope = scope.make_inner()
             inner_scope.define_all(expr.arg_names)
             self._check_expression(expr.body, inner_scope)
 
         else:
-            raise RuntimeError(f'Unhandled expression: {e}')
+            raise RuntimeError(f'Unhandled expression: {expr}')
 
     def _check_type(self, t):
         pass
