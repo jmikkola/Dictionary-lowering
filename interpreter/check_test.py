@@ -12,6 +12,13 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_no_error(text)
 
+    def test_redefining_builtin_class(self):
+        text = '''
+(class (Int s)
+  (:: toint (Fn s String)))
+'''
+        self.assert_error(text, 'Cannot redefine the builtin type Int')
+
     def test_duplicate_class_definitions(self):
         text = '''
 (class (Show s)
@@ -64,6 +71,10 @@ class CheckTest(unittest.TestCase):
 (fn f (x) x)
 '''
         self.assert_error(text, 'Duplicate method name f')
+
+    def test_redefining_builtin_functions(self):
+        text = '(fn print (x) x)'
+        self.assert_error(text, 'Cannot redefine the builtin print')
 
     def test_duplicate_method_names_between_functions_and_classes(self):
         text = '''
