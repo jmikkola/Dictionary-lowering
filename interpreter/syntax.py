@@ -1,5 +1,6 @@
 # module syntax
 
+from interpreter import types
 from interpreter.types import Type, TClass, TypeVariable, Qualified, TConstructor
 
 class Literal:
@@ -455,6 +456,9 @@ class MethodDecl:
 
     def get_type(self):
         return self.qual_type.t
+
+    def num_args(self):
+        return types.num_args(self.get_type())
 
 
 class ClassDef:

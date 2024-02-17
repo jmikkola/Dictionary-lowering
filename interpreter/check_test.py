@@ -165,6 +165,20 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'struct Bar has multiple fields named foo')
 
+    def test_valid_instance_definition(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (ToInt (Pair Int b))
+  (fn toInt (pair) 0))
+'''
+        self.assert_no_error(text)
+
     def test_overlapping_instances(self):
         text = '''
 (struct (Pair a b)
@@ -181,6 +195,89 @@ class CheckTest(unittest.TestCase):
   (fn toInt (pair) 0))
 '''
         self.assert_error(text, 'Instances (Pair Int b) and (Pair a String) for ToInt overlap')
+
+    def test_instance_for_undefined_type(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (ToInt (Pair Int b))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'Undefined type Pair')
+
+    def test_instance_for_undefined_class(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(instance (ToInt (Pair Int b))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'Undefined class ToInt')
+
+    def test_instance_with_predicate_containing_undefined_class(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (=> ((OtherClass b)) (ToInt (Pair Int b)))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'Undefined class OtherClass')
+
+    def test_instance_with_unapplicable_predicate(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (=> ((ToInt c)) (ToInt (Pair Int b)))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'The predicate (ToInt c) does not apply to the type (Pair Int b)')
+
+    def test_instance_with_invalid_predicate(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (=> ((ToInt String)) (ToInt (Pair Int b)))
+  (fn toInt (pair) 0))
+'''
+        self.assert_error(text, 'The predicate (ToInt String) applies a predicate to a concrete type')
+
+    def test_instance_with_wrong_method_names(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (ToInt Int)
+  (fn wrongNameHere (i) 0))
+'''
+        self.assert_error(text, 'The instance (ToInt Int) declares a method wrongNameHere not found on the class')
+
+    def test_instance_with_wrong_number_of_method_args(self):
+        text = '''
+(class (ToInt a)
+  (:: toInt (Fn a Int)))
+
+(instance (ToInt Int)
+  (fn toInt (x y z) 0))
+'''
+        self.assert_error(text, 'The toInt method of instance (ToInt Int) has the wrong number of arguments')
 
     def test_referring_to_type_that_does_not_exist(self):
         text = '''

@@ -331,3 +331,8 @@ def require_function_type(t: Type):
     assert(isinstance(t, TApplication))
     assert(t.t == TConstructor('Fn'))
     return (t.args[:-1], t.args[-1])
+
+
+def num_args(t: Type) -> int:
+    args, _ret = require_function_type(t)
+    return len(args)

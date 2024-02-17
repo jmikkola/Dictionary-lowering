@@ -14,11 +14,6 @@ def check(program: Program):
     ''' This is a pass that should run right after the parser and
     before any type or lowering passes'''
 
-    # TODO:
-    # - Check instances:
-    #     - Reference a valid type (requires defining the built-in type names)
-    #     - Reference a valid class
-    #     - Match methods by name and number of args
     checker = Checker(program)
     checker.check()
 
@@ -155,8 +150,7 @@ class Checker:
         )
 
         for s in c.supers:
-            if not s.name in self.class_types:
-                raise CheckFailure(f'Undefined class {s.name}')
+            self._ensure_class_exists(s.name)
 
         self._assert_unique(
             (m.method_name for m in c.methods),
@@ -186,10 +180,43 @@ class Checker:
             self._check_instance_overlap(classname, insts_for_class)
 
     def _check_instance(self, instance):
-        # TODO: check for a valid instance
+        self._ensure_class_exists(instance.get_class().name)
+
+        # Assemble a qualified type to check the type, the predicates, and that the predicates apply to the type
+        qual = types.Qualified(instance.get_predicates(), instance.get_type())
+        self._check_qualified(qual)
 
         for method in instance.method_impls:
             self._check_function(method)
+
+        # Find the associated class
+        for c in self.program.classes:
+            if c.tclass == instance.get_class():
+                classdef = c
+
+        # Check the methods
+        defined_methods = {
+            method.name: method
+            for method in instance.method_impls
+        }
+
+        class_method_names = {
+            method.method_name
+            for method in classdef.methods
+        }
+
+        iname = show_lisp(instance.qual_pred.t)
+
+        for method in instance.method_impls:
+            if method.name not in class_method_names:
+                raise CheckFailure(f'The instance {iname} declares a method {method.name} not found on the class')
+
+        for method in classdef.methods:
+            if method.method_name not in defined_methods:
+                raise CheckFailure(f'The instance {iname} does not define the method {method.method_name}')
+            inst_method = defined_methods[method.method_name]
+            if len(inst_method.arg_names) != method.num_args():
+                raise CheckFailure(f'The {method.method_name} method of instance {iname} has the wrong number of arguments')
 
     def _check_instance_overlap(self, classname, insts_for_class):
         # Check all pairwise combinations
@@ -310,10 +337,12 @@ class Checker:
         self._check_type(qualified.t)
 
     def _check_predicate(self, predicate):
-        classname = predicate.tclass.name
+        self._ensure_class_exists(predicate.tclass.name)
+        self._check_type(predicate.t)
+
+    def _ensure_class_exists(self, classname):
         if classname not in self.class_types:
             raise CheckFailure(f'Undefined class {classname}')
-        self._check_type(predicate.t)
 
     def _check_valid_name(self, name_kind, name):
         first_letter = name[0]
