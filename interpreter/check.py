@@ -13,9 +13,6 @@ def check(program: Program):
     before any type or lowering passes'''
 
     # TODO:
-    # - Check expressions:
-    #     - Refer to defined variables or functions (which includes class
-    #     methods) (requires defining the built-in classes and functions)
     # - Check instances:
     #     - Reference a valid type (requires defining the built-in type names)
     #     - Reference a valid class

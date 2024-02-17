@@ -129,6 +129,13 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Undefined variable y')
 
+    def test_can_refer_to_built_in(self):
+        text = '''
+(fn foo (x)
+  (inc x))
+'''
+        self.assert_no_error(text)
+
     def test_struct_and_class_with_same_name(self):
         text = '''
 (class (ClassA a)
