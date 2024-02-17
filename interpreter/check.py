@@ -10,7 +10,6 @@ def check(program: Program):
 
     # TODO:
     # - Check for duplicate:
-    #     - struct fields
     #     - lambda arg names
     #     - let binding names
     # - Check expressions:
@@ -89,7 +88,16 @@ class Checker:
         self._check_valid_name('function', function.name)
 
     def _check_structs(self, structs):
-        pass
+        for s in structs:
+            self._check_struct(s)
+
+    def _check_struct(self, struct):
+        self._assert_unique(
+            (name for (name, _t) in struct.fields),
+            lambda name: CheckFailure(f'struct {struct.name} has multiple fields named {name}')
+        )
+        for (_name, t) in struct.fields:
+            self._check_type(t)
 
     def _check_classes(self, classes):
         self._assert_unique(

@@ -103,6 +103,14 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'function names must start with a lowercase letter, found Foo')
 
+    def test_catches_duplicate_struct_fields(self):
+        text = '''
+(struct Bar
+  (:: foo Int)
+  (:: foo Int))
+'''
+        self.assert_error(text, 'struct Bar has multiple fields named foo')
+
     def assert_no_error(self, text):
         self.assertIsNone(self._get_error(text))
 
