@@ -61,6 +61,7 @@ The next steps are:
 Things that would be nice to add:
 
 - A bytecode VM
+- Add a kinds system to ensure types are correctly constructed
 - Compilation to x86?
 
 Some cleanup I want to do at some point:
@@ -77,3 +78,5 @@ Some cleanup I want to do at some point:
   to hard-code a reference to that particular function instead. Doing this requires making
   stand-alone functions for the instance methods instead of them being lambda functions in the
   dictionary constructor.
+- Add line/column numbers to the syntax objects and to error messages.
+- Support more than one error message at once.
