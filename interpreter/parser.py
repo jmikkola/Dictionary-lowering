@@ -1,6 +1,7 @@
 # module parser
 
 import re
+from typing import List
 
 from interpreter import syntax
 from interpreter import types
@@ -463,15 +464,17 @@ def _parse_tokens(tokens: list) -> list:
       _parse_tokens(['(', '123', ')', '456'])
       returns [["123"], "456"]
     '''
-    stack = ([], None)  # type: ignore
+    stack = [[]]  # type: List[List[str | List]]
     for t in tokens:
         if t == '(':
-            stack = ([], stack)  # type: ignore
+            stack.append([])
         elif t == ')':
-            (finished_list, stack) = stack  # type: ignore
-            stack[0].append(finished_list)
+            assert(len(stack) > 1)
+            finished_list = stack.pop()
+            stack[-1].append(finished_list)
         elif not t.startswith(';;'):
-            stack[0].append(t)
+            stack[-1].append(t)
+    assert(len(stack) == 1)
     return stack[0]
 
 
