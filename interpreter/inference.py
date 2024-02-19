@@ -1,5 +1,6 @@
 # module inference
 
+from interpreter import graph
 from interpreter import syntax
 from interpreter.program import Program
 
@@ -46,9 +47,16 @@ def split_bindings(functions):
 def group_call_graph(functions, all_function_names):
     ''' Groups functions by their call graph into groups of mutually-recurisve functions.'''
 
+    # The call graph contains the names of the functions
     call_graph = make_call_graph(functions, all_function_names)
-    components = strongly_connected_components(call_graph)
-    return components[::-1]
+    components = graph.strongly_connected_components(call_graph)
+
+    # Group the actual functions by component
+    functions_by_name = {f.name: f for f in functions}
+    return [
+        [functions_by_name[name] for name in component]
+        for component in components
+    ]
 
 
 def make_call_graph(functions, all_function_names):
@@ -62,13 +70,14 @@ def make_call_graph(functions, all_function_names):
 
 
 def get_called_functions(function: syntax.DFunction):
-    ''' Returns the names of the functions called by the given function.'''
+    ''' Returns the names of the functions referenced by the given function.'''
     scope = Scope()
     scope.define_all(function.arg_names)
     return get_unbound_variables(function.body, scope)
 
 
 def get_unbound_variables(expr, scope):
+    ''' Returns the set of unbound variables in the given expression. '''
     if isinstance(expr, syntax.EVariable):
         if not scope.is_defined(expr.name):
             return set([expr.name])
@@ -118,11 +127,6 @@ def get_unbound_variables(expr, scope):
 
     else:
         raise RuntimeError(f'Unhandled expression: {expr}')
-
-
-def strongly_connected_components(graph):
-    ''' Returns a list of strongly connected components in the graph.'''
-    pass
 
 
 class Scope:
