@@ -15,7 +15,7 @@ class Inference:
     def __init__(self, program):
         self.program = program
         self.var_count = 0
-        self.substitution = types.Substitution()
+        self.substitution = types.Substitution({})
 
     def infer(self):
         # TODO: Build class environment
@@ -220,9 +220,6 @@ class Scope:
     def __init__(self, parent=None):
         self.parent = parent
         self.names = set()
-
-    def define(self, name):
-        self.names.add(name)
 
     def define_all(self, names):
         self.names.update(names)

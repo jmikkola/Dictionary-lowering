@@ -31,3 +31,28 @@ class InferenceTest(unittest.TestCase):
 
         impl_names = [sorted(f.name for f in group) for group in implicit_typed_groups]
         self.assertEqual([['impl1'], ['impl5'], ['impl4'], ['impl2', 'impl3']], impl_names)
+
+    def test_get_called_functions(self):
+        def call(text):
+            program = parser.parse(text)
+            return inference.get_called_functions(program.functions[0])
+
+        # Basic examples
+        self.assertEqual(set(), call('(fn f () 0)'))
+        self.assertEqual({'f'}, call('(fn f () (f))'))
+        self.assertEqual({'g'}, call('(fn f () (g))'))
+
+        # References to arguments are not treated as references to other functions
+        self.assertEqual({'a', 'b'}, call('(fn f (x y) (a b x y))'))
+
+        # References to let-bound variables are also not included
+        self.assertEqual({'a'}, call('(fn f (x) (let ((y x) (z y)) (z a x)))'))
+
+        # Finally, variables introduced as arguments to lambda functions are not included
+        self.assertEqual({'a'}, call('(fn f (x) (\ (y) (a y x)))'))
+
+        # Other syntax forms work
+        self.assertEqual({'a', 'b'}, call('(fn f (x) (if x (a) (b)))'))
+        self.assertEqual({'a'}, call('(fn f (x) (new Item (a x)))'))
+        self.assertEqual({'a'}, call('(fn f (x) (. (a x) field))'))
+        self.assertEqual({'a'}, call('(fn f (x) (*partial* a x))'))
