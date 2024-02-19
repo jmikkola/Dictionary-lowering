@@ -120,27 +120,20 @@ def split_bindings(functions):
     The implicitly-typed functions are returned as a topologically sorted list of groups of
     functions. Each group is a list of functions that are mutually recursive.
     '''
-    all_function_names = {f.name for f in functions}
+    explicit_typed = [f for f in functions if f.t is not None]
 
-    explicit_typed = [
-        f for f in functions
-        if f.type is not None
-    ]
-
-    implicit_typed = [
-        f for f in functions
-        if f.type is None
-    ]
-    implicit_typed_groups = group_call_graph(implicit_typed, all_function_names)
+    implicit_typed = [f for f in functions if f.t is None]
+    implicit_typed_groups = group_call_graph(implicit_typed)
 
     return explicit_typed, implicit_typed_groups
 
 
-def group_call_graph(functions, all_function_names):
+def group_call_graph(functions):
     ''' Groups functions by their call graph into groups of mutually-recurisve functions.'''
+    function_names = {f.name for f in functions}
 
     # The call graph contains the names of the functions
-    call_graph = make_call_graph(functions, all_function_names)
+    call_graph = make_call_graph(functions, function_names)
     components = graph.strongly_connected_components(call_graph)
 
     # Group the actual functions by component
@@ -151,12 +144,12 @@ def group_call_graph(functions, all_function_names):
     ]
 
 
-def make_call_graph(functions, all_function_names):
+def make_call_graph(functions, function_names):
     ''' Returns a dictionary of function names to the names of the functions they call.'''
-    # Take the intersection of the result of get_called_functions with all_function_names to
-    # exclude names that aren't user-defined functions (e.g. builtins).
+    # Take the intersection of the result of get_called_functions with function_names to
+    # exclude names that aren't being considered (e.g. builtins and explicitly-typed functions)
     return {
-        f.name: get_called_functions(f) & all_function_names
+        f.name: get_called_functions(f) & function_names
         for f in functions
     }
 
@@ -173,6 +166,8 @@ def get_unbound_variables(expr, scope):
     if isinstance(expr, syntax.EVariable):
         if not scope.is_defined(expr.name):
             return set([expr.name])
+        else:
+            return set()
 
     elif isinstance(expr, syntax.ELiteral):
         return set()

@@ -61,7 +61,7 @@ def strongly_connected_components(graph):
         stack.append(node)
         in_stack.add(node)
 
-        for neighbor in graph[node]:
+        for neighbor in graph.get(node, []):
             if neighbor not in indexes:
                 strong_connect(neighbor)
                 lowlinks[node] = min(lowlinks[node], lowlinks[neighbor])
