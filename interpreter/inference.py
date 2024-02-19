@@ -2,24 +2,116 @@
 
 from interpreter import graph
 from interpreter import syntax
+from interpreter import types
 from interpreter.program import Program
 
 
 def infer_types(program: Program) -> Program:
-    # Split bindings into explicitly typed and implicitly typed groups
-    explicit_typed, implicit_typed_groups = split_bindings(program.functions)
-    # TODO: infer types for implicit_typed_groups
-    # TODO: check types for explicit_typed
+    inference = Inference(program)
+    return inference.infer()
 
-    # Return the program with types inferred
-    return Program(
-        'inference',
-        # TODO: Replace with typed functions
-        functions=program.functions,
-        structs=program.structs,
-        classes=program.classes,
-        instances=program.instances,
-    )
+
+class Inference:
+    def __init__(self, program):
+        self.program = program
+        self.var_count = 0
+        self.substitution = types.Substitution()
+
+    def infer(self):
+        # TODO: Build class environment
+        # TODO: Add builtins to the environment
+
+        # Split bindings into explicitly typed and implicitly typed groups
+        explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
+
+        predicates = []
+        assumptions = {}
+
+        # Add the explicit types to the assumptions
+        for f in explicit_typed:
+            assumptions[f.name] = f.type
+
+        # Infer the types of the implicitly typed functions
+        for group in implicit_typed_groups:
+            preds, aspts = self.infer_group(group, Assumptions(assumptions))
+            predicates.extend(preds)
+            assumptions.update(aspts)
+
+        # Check that the types of explicitly typed functions are valid
+        for f in explicit_typed:
+            preds = self.infer_explicit(f, Assumptions(assumptions))
+            predicates.extend(preds)
+
+        # Finally, check the types of types in instances
+        instances = self.infer_instances(self.program.instances, Assumptions(assumptions))
+
+        # Update the predicates with the current substitution
+        predicates = self.substitution.apply_to_list(predicates)
+
+        # Get rid of any predicates that obviously hold (e.g. (Show Int))
+        retained_predicates = self.apply_context_reduction(predicates)
+
+        # Of the predicates that remain, pick default types where possible
+        # (e.g. replace (=> (Num a) a) with Int).
+        defauling_substitution = self.apply_defaults(retained_predicates)
+        self.substitution = self.substitution.compose(defauling_substitution)
+
+        # Now that the final types are known, go back and update the type information on the functions
+        typed_functions = self.apply_types_to_functions(explicit_typed, implicit_typed_groups)
+        typed_instances = self.apply_types_to_instances(instances)
+
+        # Return the program with types inferred
+        return Program(
+            'inference',
+            functions=typed_functions,
+            structs=self.program.structs,
+            classes=self.program.classes,
+            instances=typed_instances,
+        )
+
+    def infer_group(self, functions, assumptions):
+        ''' Infers the types of the given group of implicitly-typed functions. '''
+        # TODO
+        pass
+
+    def infer_explicit(self, function, assumptions):
+        ''' Infers the type of the given explicitly-typed function. '''
+        # TODO
+        pass
+
+    def infer_instances(self, instances, assumptions):
+        ''' Infers the types of the given instances. '''
+        # TODO
+        pass
+
+    def apply_context_reduction(self, predicates):
+        pass
+
+    def apply_defaults(self, predicates):
+        pass
+
+    def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
+        pass
+
+    def apply_types_to_instances(self, instances):
+        pass
+
+
+class Assumptions:
+    def __init__(self, assumptions=None, parent=None):
+        self.assumptions = assumptions or {}
+        self.parent = parent
+
+    def define(self, name, type):
+        self.assumptions[name] = type
+
+    def get_type(self, name):
+        if name in self.assumptions:
+            return self.assumptions[name]
+        elif self.parent:
+            return self.parent.get_type(name)
+        else:
+            raise RuntimeError(f'No type for {name}')
 
 
 def split_bindings(functions):
