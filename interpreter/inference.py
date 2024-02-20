@@ -1,5 +1,7 @@
 # module inference
 
+from collections import defaultdict
+
 from interpreter import graph
 from interpreter import syntax
 from interpreter import types
@@ -95,6 +97,38 @@ class Inference:
 
     def apply_types_to_instances(self, instances):
         pass
+
+    def find_ambiguities(self, type_variables, predicates):
+        ''' Find predicates that are ambiguous because they refer to a type variable that's not part of the binding's type.
+
+        E.g. in '(Show a) => b -> String', the predicate (Show a) is ambiguous because 'a' is not part of the type 'b -> String'.
+
+        This can happen when a variable inside a function has an ambiguous type (e.g. we know it's some kind of number, but don't know what kind).
+        This can happen with code like:
+          fromInteger x > fromInteger y
+        (fromInteger x could return any number type such as Float and this would be valid, so it's ambiguous which type to use.)
+
+        The resulting ambiguities are grouped by the type variable they refer to.
+        '''
+        tv_set = set(type_variables)
+
+        predicates_by_type_variable = defaultdict(list)
+        for p in predicates:
+            predicates_by_type_variable[p.t.type_variable].append(p)
+
+        predicate_vars = [p.t.type_variable for p in predicates]
+
+        return [
+            Ambiguity(tv, predicates_by_type_variable[tv])
+            for tv in predicate_vars
+            if tv not in tv_set
+        ]
+
+
+class Ambiguity:
+    def __init__(self, type_variable, predicates):
+        self.type_variable = type_variable
+        self.predicates = predicates
 
 
 class Assumptions:
