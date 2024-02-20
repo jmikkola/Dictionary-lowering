@@ -259,6 +259,9 @@ def can_types_unify(l: Type, r: Type) -> bool:
 
 
 def most_general_unifier(l: Type, r: Type) -> Substitution:
+    ''' find a substitution that, if applied to both l and r, will result in the same type.
+
+    Raises a TypeError if no such substitution can be found. '''
     if isinstance(l, TVariable):
         return bind_type_var(l.type_variable, r)
 

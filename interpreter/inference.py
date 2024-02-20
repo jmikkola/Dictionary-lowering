@@ -116,13 +116,69 @@ class Inference:
         for p in predicates:
             predicates_by_type_variable[p.t.type_variable].append(p)
 
-        predicate_vars = [p.t.type_variable for p in predicates]
-
         return [
-            Ambiguity(tv, predicates_by_type_variable[tv])
-            for tv in predicate_vars
+            Ambiguity(tv, preds)
+            for (tv, preds) in predicates_by_type_variable.items()
             if tv not in tv_set
         ]
+
+    def to_head_normal_form_list(self, predicates):
+        ''' Converts a list of predicates to head normal form. '''
+        results = []
+        for p in predicates:
+            results.extend(self.to_head_normal_form(p))
+        return results
+
+    def to_head_normal_form(self, predicate):
+        ''' Converts a predicate to head normal form. '''
+        if self.in_head_normal_form(predicate):
+            return [predicate]
+
+        # If the predicate is something like `(Show (List Int))`, try to find an
+        # instance of Show for Int. If there's no instance that matches, then context
+        # reduction fails. If there is an instance that matches, that instance might
+        # give predicates of it's own (in this case, probably `(Show Int)`), so recursively
+        # process those.
+        predicates = self.by_instances(predicate)
+        if predicates is None:
+            raise types.TypeError(f'Context reduction fails for {predicate}')
+
+        return self.to_head_normal_form_list(predicates)
+
+    def in_head_normal_form(self, predicate):
+        t = predicate.t
+        if isinstance(t, types.TVariable):
+            return True
+        elif isinstance(t, types.TConstructor):
+            return False
+        elif isinstance(t, types.TApplication):
+            return self.in_head_normal_form(t.t)
+        else:
+            raise RuntimeError(f'Unhandled type: {t}')
+
+    def by_instances(self, predicate):
+        ''' Find an instances of the class mentioned in the predicate that matches the predicate's type.
+
+        This returns any predicates that instance needs. '''
+        instances = self.get_instances(predicate.tclass)
+
+        for instance in instances:
+            try:
+                substitution = self.match_predicate(instance.get_predicate(), predicate)
+                return substitution.apply_to_list(instance.get_predicates())
+            except types.TypeError:
+                # The instance didn't match, so try the next one
+                continue
+
+    def match_predicate(self, instance_predicate, predicate):
+        ''' Matches the instance predicate to the given predicate, returning the substitution that makes them equal. '''
+        if instance_predicate.tclass != predicate.tclass:
+            raise types.TypeError('Class mismatch')
+
+        return types.match(instance_predicate.t, predicate.t)
+
+    def get_instances(self, tclass):
+        pass # TODO
 
 
 class Ambiguity:

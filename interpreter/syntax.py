@@ -542,15 +542,22 @@ class InstanceDef:
         lisp += [m.to_lisp() for m in self.method_impls]
         return lisp
 
+    def get_predicate(self):
+        ''' Returns a predicate containing the implemented class and the type the class is implemented for '''
+        return self.qual_pred.t
+
     def get_class(self):
+        ''' Returns the class being implemented. '''
         pred = self.qual_pred.t
         return pred.tclass
 
     def get_type(self):
+        ''' Returns the type the class is implemented for. '''
         pred = self.qual_pred.t
         return pred.t
 
     def get_predicates(self):
+        ''' Returns the predicates that must be satisfied for this instance to be used. '''
         return self.qual_pred.predicates
 
 
