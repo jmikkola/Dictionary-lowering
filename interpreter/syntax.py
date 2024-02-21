@@ -3,6 +3,7 @@
 from interpreter import types
 from interpreter.types import Type, TClass, TypeVariable, Qualified, TConstructor
 
+
 class Literal:
     def get_type(self) -> Type:
         raise NotImplementedError

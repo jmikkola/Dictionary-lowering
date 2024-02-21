@@ -19,6 +19,9 @@ class Inference:
         self.var_count = 0
         self.substitution = types.Substitution({})
 
+        self.classes = {}  # type: dict[str, syntax.ClassDef]
+        self.instances = defaultdict(list)
+
     def infer(self):
         # TODO: Build class environment
         # TODO: Add builtins to the environment
@@ -177,8 +180,56 @@ class Inference:
 
         return types.match(instance_predicate.t, predicate.t)
 
-    def get_instances(self, tclass):
-        pass # TODO
+    def get_predicates_for_superclasses(self, predicate: types.Predicate):
+        ''' Returns the current predicate plus the predicates that you also get because their classes are superclasses of the current class. '''
+        result = [predicate]
+
+        class_def = self.classes[predicate.tclass.name]
+        for superclass in class_def.supers:
+            p = types.Predicate(superclass, predicate.t)
+            result.extend(self.get_predicates_for_superclasses(p))
+
+        return result
+
+    def entails(self, given_predicates, p):
+        ''' Returns true if the given predicates entail the predicate p. '''
+        # Return true if one of the given predicates or its superclasses match p
+        for given in given_predicates:
+            if p in self.get_predicates_for_superclasses(given):
+                return True
+
+        # Return true if there is an instance of the class that matches p
+        # _and_ all the predicates for that instance are also entailed.
+        instance_preds = self.by_instances(p)
+        if instance_preds is None:
+            return False
+
+        for inst_p in instance_preds:
+            if not self.entails(given_predicates, inst_p):
+                return False
+
+        return True
+
+    def simplify(self, predicates):
+        ''' Removes any predicate from the list that is entailed by the others. '''
+        results = []
+
+        for i in range(len(predicates)):
+            p = predicates[i]
+            other_predicates = predicates[:i] + predicates[i+1:]
+            # Keep p in the output if it is not entailed by the other predicates
+            if not self.entails(other_predicates, p):
+                results.append(p)
+
+        return results
+
+    def reduce(self, predicates):
+        ''' Convert predicates to HNF then simplify them. '''
+        predicates = self.to_head_normal_form_list(predicates)
+        return self.simplify(predicates)
+
+    def get_instances(self, tclass: types.TClass):
+        return self.instances.get(tclass.name, [])
 
 
 class Ambiguity:

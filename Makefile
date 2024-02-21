@@ -14,12 +14,13 @@ TAGS:
 
 pylint:
 	pylint -E interpreter/
+	pyflakes interpreter/
 
 coverage:
 	coverage run -m unittest discover  -s interpreter -p '*_test.py' && coverage html
 
 installdeps:
-	python3 -m pip install coverage mypy pylint
+	python3 -m pip install coverage mypy pylint pyflakes
 
 watch:
 	./watch.sh
