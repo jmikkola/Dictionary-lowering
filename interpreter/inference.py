@@ -231,6 +231,14 @@ class Inference:
     def get_instances(self, tclass: types.TClass):
         return self.instances.get(tclass.name, [])
 
+    def next_type_var(self):
+        self.var_count += 1
+        return types.TVariable(f't{self.var_count}')
+
+    def instantiate(self, scheme: types.Scheme):
+        fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
+        return scheme.instantiate(fresh_types)
+
 
 class Ambiguity:
     def __init__(self, type_variable, predicates):

@@ -57,6 +57,32 @@ class TVariable(Type):
         return self
 
 
+class TGeneric(Type):
+    def __init__(self, num: int):
+        self.num = num
+
+    def __str__(self):
+        return f't${self.num}'
+
+    def __repr__(self):
+        return f'TGeneric({self.num})'
+
+    def __eq__(self, o):
+        return isinstance(o, TGeneric) and o.num == self.num
+
+    def to_lisp(self):
+        return str(self)
+
+    def free_type_vars(self):
+        return set()
+
+    def apply(self, substitution):
+        replacement = substitution.get(self)
+        if replacement is not None:
+            return replacement
+        return self
+
+
 class TConstructor(Type):
     def __init__(self, type_name: str):
         self.type_name = type_name
@@ -191,6 +217,58 @@ class Qualified:
     def unqualify(self):
         return self.t
 
+    def free_type_vars(self):
+        ftvs = self.t.free_type_vars()
+        for p in self.predicates:
+            ftvs |= p.t.free_type_vars()
+        return ftvs
+
+
+class Scheme:
+    def __init__(self, n_vars: int, qualified: Qualified):
+        self.n_vars = n_vars
+        self.qualified = qualified
+
+    def __str__(self):
+        return str(self.qualified)
+
+    def __repr__(self):
+        return f'Scheme({self.n_vars}, {repr(self.qualified)})'
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, Scheme) and
+            o.n_vars == self.n_vars and
+            o.qualified == self.qualified
+        )
+
+    def free_type_vars(self):
+        return self.qualified.free_type_vars()
+
+    def apply(self, substitution):
+        return Scheme(self.n_vars, self.qualified.apply(substitution))
+
+    def instantiate(self, fresh_vars):
+        assert(len(fresh_vars) == self.n_vars)
+        sub = {TGeneric(i): t for i, t in enumerate(fresh_vars)}
+        return self.qualified.apply(Substitution(sub))
+
+    @classmethod
+    def to_scheme(cls, t: Type):
+        return Scheme(0, Qualified([], t))
+
+    @classmethod
+    def quantify(cls, type_vars, qt: Qualified):
+        free_vars = qt.free_type_vars()
+
+        sub = {}
+        i = 0
+        for var in type_vars:
+            if var in free_vars:
+                sub[var] = TGeneric(i)
+                i += 1
+
+        return Scheme(i, qt.apply(Substitution(sub)))
 
 class Substitution:
     # dict[TyVar, Type]
