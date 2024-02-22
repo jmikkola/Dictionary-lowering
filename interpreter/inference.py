@@ -22,6 +22,8 @@ class Inference:
         self.classes = {}  # type: dict[str, syntax.ClassDef]
         self.instances = defaultdict(list)
 
+        self.default_types = [types.TConstructor('Int'), types.TConstructor('Float')]
+
     def infer(self):
         # TODO: Build class environment
         # TODO: Add builtins to the environment
@@ -54,7 +56,7 @@ class Inference:
         predicates = self.substitution.apply_to_list(predicates)
 
         # Get rid of any predicates that obviously hold (e.g. (Show Int))
-        retained_predicates = self.apply_context_reduction(predicates)
+        retained_predicates = self.reduce(predicates)
 
         # Of the predicates that remain, pick default types where possible
         # (e.g. replace (=> (Num a) a) with Int).
@@ -89,17 +91,95 @@ class Inference:
         # TODO
         pass
 
-    def apply_context_reduction(self, predicates):
-        pass
-
-    def apply_defaults(self, predicates):
-        pass
 
     def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
         pass
 
     def apply_types_to_instances(self, instances):
         pass
+
+    def split(self, context_tvars, binding_tvars, predicates):
+        predicates = self.reduce(predicates)
+
+        context_tvar_set = set(context_tvars)
+
+        deferred = []
+        retained = []
+
+        for predicate in predicates:
+            pred_tvars = predicate.t.type_variables()
+            # check if all type varibles in the predicate are from the context:
+            if pred_tvars.issubset(context_tvar_set):
+                deferred.append(predicate)
+            else:
+                retained.append(predicate)
+
+        defaulted = self.defaulted_predicates(context_tvars + binding_tvars, retained)
+
+        retained = [
+            p for p in retained
+            if p not in defaulted
+        ]
+
+        return deferred, retained
+
+    def apply_defaults(self, predicates):
+        ambiguities = self.find_ambiguities([], predicates)
+
+        sub = {}
+        for a in ambiguities:
+            candidate_types = self.candidates(a)
+            if len(candidate_types) == 0:
+                raise types.TypeError(f'No default type for {a.type_variable}')
+            sub[a.type_variable] = candidate_types[0]
+
+        return types.Substitution(sub)
+
+    def defaulted_predicates(self, type_variables, predicates):
+        ambiguities = self.find_ambiguities(type_variables, predicates)
+
+        results = []
+        for a in ambiguities:
+            candidate_types = self.candidates(a)
+            if len(candidate_types) == 0:
+                raise types.TypeError(f'No default type for {a.type_variable}')
+            results.extend(a.predicates)
+
+        return results
+
+    def candidates(self, ambiguity):
+        ''' Find concrete types that are a candidate for an ambiguous type. '''
+        assert(isinstance(ambiguity, Ambiguity))
+        for pred in ambiguity.predicates:
+            # Only predicates on type variables are resolvable ambiguities
+            if not isinstance(pred.t, types.TVariable):
+                return []
+
+        class_names = [p.tclass.name for p in ambiguity.predicates]
+
+        # Only number types are resolvable
+        if 'Num' not in class_names:
+            return []
+
+        # All classes must be standard classes
+        std_classes = ['Eq', 'Ord', 'Show', 'Read', 'Num']
+        for c in class_names:
+            if c not in std_classes:
+                return []
+
+        candidate_types = []
+        for t in self.default_types:
+            all_entailed = False
+            for p in ambiguity.predicates:
+                # Does the predicate p hold for this candidate type t?
+                candidate_predicate = types.Predicate(p.tclass, t)
+                if not self.entails([], candidate_predicate):
+                    all_entailed = False
+                    break
+            if all_entailed:
+                candidate_types.append(t)
+
+        return candidate_types
 
     def find_ambiguities(self, type_variables, predicates):
         ''' Find predicates that are ambiguous because they refer to a type variable that's not part of the binding's type.
@@ -238,6 +318,13 @@ class Inference:
     def instantiate(self, scheme: types.Scheme):
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
         return scheme.instantiate(fresh_types)
+
+    def unify_types(self, t1, t2):
+        sub = types.most_general_unifier(
+            t1.apply(self.substitution),
+            t2.apply(self.substitution)
+        )
+        self.substitution = self.substitution.compose(sub)
 
 
 class Ambiguity:
