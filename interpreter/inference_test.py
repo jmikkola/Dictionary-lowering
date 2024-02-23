@@ -100,9 +100,39 @@ class InferenceTest(unittest.TestCase):
         candidates = inf.candidates(inference.Ambiguity(a, [num_t]))
         self.assertEqual([], candidates)
 
-
     def test_to_head_normal_form(self):
-        pass
+        inf = inference.Inference(self.empty_program())
+
+        pred = lambda cls, t: types.Predicate(types.TClass(cls), t)
+
+        # A predicate already in HNF
+        predicate = pred('Num', types.TVariable.from_varname('a'))
+        self.assertTrue(inf.in_head_normal_form(predicate))
+        self.assertEqual([predicate], inf.to_head_normal_form(predicate))
+
+        # Application of a type to a type variable
+        t = types.TApplication(
+            types.TVariable.from_varname('a'),
+            [types.TConstructor('Int')]
+        )
+        predicate = pred('Num', t)
+        self.assertTrue(inf.in_head_normal_form(predicate))
+        self.assertEqual([predicate], inf.to_head_normal_form(predicate))
+
+        # A predicate with a concrete type that is given by the instances
+        predicate = pred('Num', types.TConstructor('Int'))
+        self.assertFalse(inf.in_head_normal_form(predicate))
+        self.assertEqual([], inf.to_head_normal_form(predicate))
+
+        # A predicate that can be replaced with a simpler predicate
+        t = types.TApplication(
+            types.TConstructor('List'),
+            [types.TVariable.from_varname('a')]
+        )
+        predicate = pred('Show', t)
+        self.assertFalse(inf.in_head_normal_form(predicate))
+        simpler_predicate = pred('Show', types.TVariable.from_varname('a'))
+        self.assertEqual([simpler_predicate], inf.to_head_normal_form(predicate))
 
     def test_find_ambiguities(self):
         pass

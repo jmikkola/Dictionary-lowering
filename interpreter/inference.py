@@ -53,7 +53,7 @@ class Inference:
         self._add_simple_instance('Show', 'Float')
         self._add_simple_instance('Show', 'String')
         self._add_simple_instance('Show', 'Bool')
-        self._parse_and_add_instance('(=> ((Show a)) (Eq (Show a)))')
+        self._parse_and_add_instance('(=> ((Show a)) (Show (List a)))')
 
         self._add_simple_instance('Num', 'Int')
         self._add_simple_instance('Num', 'Float')
@@ -154,7 +154,6 @@ class Inference:
         ''' Infers the types of the given instances. '''
         # TODO
         pass
-
 
     def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
         pass
@@ -294,13 +293,17 @@ class Inference:
         return self.to_head_normal_form_list(predicates)
 
     def in_head_normal_form(self, predicate):
-        t = predicate.t
+        assert(isinstance(predicate, types.Predicate))
+        return self.type_in_head_normal_form(predicate.t)
+
+    def type_in_head_normal_form(self, t):
+        assert(isinstance(t, types.Type))
         if isinstance(t, types.TVariable):
             return True
         elif isinstance(t, types.TConstructor):
             return False
         elif isinstance(t, types.TApplication):
-            return self.in_head_normal_form(t.t)
+            return self.type_in_head_normal_form(t.t)
         else:
             raise RuntimeError(f'Unhandled type: {t}')
 
