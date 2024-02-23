@@ -236,6 +236,7 @@ class Inference:
             all_entailed = True
             for p in ambiguity.predicates:
                 # Does the predicate p hold for this candidate type t?
+                # (Which basically means is there an instance of the class for t)
                 candidate_predicate = types.Predicate(p.tclass, t)
                 if not self.entails([], candidate_predicate):
                     all_entailed = False
@@ -398,6 +399,19 @@ class Ambiguity:
     def __init__(self, type_variable, predicates):
         self.type_variable = type_variable
         self.predicates = predicates
+
+    def __eq__(self, o):
+        return (
+            isinstance(o, Ambiguity) and
+            self.type_variable == o.type_variable and
+            self.predicates == o.predicates
+        )
+
+    def __repr__(self):
+        return f'Ambiguity({self.type_variable}, {self.predicates})'
+
+    def __str__(self):
+        return repr(self)
 
 
 class Instance:

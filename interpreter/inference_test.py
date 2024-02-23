@@ -135,7 +135,39 @@ class InferenceTest(unittest.TestCase):
         self.assertEqual([simpler_predicate], inf.to_head_normal_form(predicate))
 
     def test_find_ambiguities(self):
-        pass
+        inf = inference.Inference(self.empty_program())
+
+        a = types.TypeVariable('a')
+        b = types.TypeVariable('b')
+        c = types.TypeVariable('c')
+
+        # A predicate isn't ambiguous if the type variable is part of the binding's type
+        type_variables = [a]
+        predicates = [types.Predicate(types.TClass('Num'), types.TVariable(a))]
+        ambiguities = inf.find_ambiguities(type_variables, predicates)
+        self.assertEqual([], ambiguities)
+
+        # A predicate is ambiguous if the type variable is not part of the binding's type
+        type_variables = [a]
+        predicates = [types.Predicate(types.TClass('Num'), types.TVariable(b))]
+        ambiguities = inf.find_ambiguities(type_variables, predicates)
+        self.assertEqual([inference.Ambiguity(b, predicates)], ambiguities)
+
+        # Ambiguities are grouped by type variable
+        type_variables = [a]
+        predicates = [
+            types.Predicate(types.TClass('Num'), types.TVariable(a)),
+            types.Predicate(types.TClass('Num'), types.TVariable(b)),
+            types.Predicate(types.TClass('Ord'), types.TVariable(b)),
+            types.Predicate(types.TClass('Show'), types.TVariable(c)),
+        ]
+        ambiguities = inf.find_ambiguities(type_variables, predicates)
+        expected = [
+            inference.Ambiguity(b, [predicates[1], predicates[2]]),
+            inference.Ambiguity(c, [predicates[3]]),
+        ]
+        self.assertEqual(expected, ambiguities)
+
 
     def test_by_instances(self):
         pass
