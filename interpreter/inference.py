@@ -1,8 +1,11 @@
 # module inference
 
 from collections import defaultdict
+import typing
 
+from interpreter import builtin
 from interpreter import graph
+from interpreter import parser
 from interpreter import syntax
 from interpreter import types
 from interpreter.program import Program
@@ -14,19 +17,80 @@ def infer_types(program: Program) -> Program:
 
 
 class Inference:
-    def __init__(self, program):
+    def __init__(self, program: Program):
         self.program = program
         self.var_count = 0
         self.substitution = types.Substitution({})
 
-        self.classes = {}  # type: dict[str, syntax.ClassDef]
-        self.instances = defaultdict(list)
+        self.class_names = set()  # type: typing.Set[str]
+        self.supers_for_class = {}  # type: typing.Dict[str, typing.List[types.TClass]]
+        self.instances = defaultdict(list)  # type: typing.Dict[str, typing.List[Instance]]
 
         self.default_types = [types.TConstructor('Int'), types.TConstructor('Float')]
 
+        # Add built-in classes. These aren't exactly Haskell's classes.
+        self.add_class('Eq', [])
+        self.add_class('Ord', ['Eq'])
+        self.add_class('Show', [])
+        self.add_class('Read', [])
+        self.add_class('Num', ['Eq', 'Show'])
+        self.add_class('Integral', ['Num', 'Ord'])
+
+        # Add built-in instances
+        self._add_simple_instance('Eq', 'Int')
+        self._add_simple_instance('Eq', 'Float')
+        self._add_simple_instance('Eq', 'String')
+        self._add_simple_instance('Eq', 'Bool')
+        # (Eq a) => (Eq (List a))
+        self._parse_and_add_instance('(=> ((Eq a)) (Eq (List a)))')
+
+        self._add_simple_instance('Ord', 'Int')
+        self._add_simple_instance('Ord', 'Float')
+        self._add_simple_instance('Ord', 'String')
+        self._add_simple_instance('Ord', 'Bool')
+
+        self._add_simple_instance('Show', 'Int')
+        self._add_simple_instance('Show', 'Float')
+        self._add_simple_instance('Show', 'String')
+        self._add_simple_instance('Show', 'Bool')
+        self._parse_and_add_instance('(=> ((Show a)) (Eq (Show a)))')
+
+        self._add_simple_instance('Num', 'Int')
+        self._add_simple_instance('Num', 'Float')
+
+        self._add_simple_instance('Integral', 'Int')
+
+    def add_classes(self, classes):
+        for cls in classes:
+            self.add_class(cls.class_name(), cls.supers)
+
+    def add_class(self, name: str, supers):
+        self.class_names.add(name)
+        self.supers_for_class[name] = supers
+
+    def add_instances(self, instances):
+        for inst in instances:
+            class_name = inst.tclass.name
+            self.add_instance(class_name, Instance.from_qual_pred(inst.qual_pred))
+
+    def add_instance(self, class_name, inst):
+        if class_name not in self.class_names:
+            raise RuntimeError(f'No class definition for {class_name}')
+        self.instances[class_name].append(inst)
+
+    def _add_simple_instance(self, class_name, constructor_name):
+        tclass = types.TClass(class_name)
+        t = types.TConstructor(constructor_name)
+        self.add_instance(class_name, Instance([], tclass, t))
+
+    def _parse_and_add_instance(self, text: str):
+        sexpr = parser._parse_lists(text)[0]
+        qual_pred = parser._parse_qualified_predicate(sexpr)
+        self.add_instance(qual_pred.t.tclass.name, Instance.from_qual_pred(qual_pred))
+
     def infer(self):
-        # TODO: Build class environment
-        # TODO: Add builtins to the environment
+        self.add_classes(self.program.classes)
+        self.add_instances(self.program.instances)
 
         # Split bindings into explicitly typed and implicitly typed groups
         explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
@@ -150,6 +214,7 @@ class Inference:
     def candidates(self, ambiguity):
         ''' Find concrete types that are a candidate for an ambiguous type. '''
         assert(isinstance(ambiguity, Ambiguity))
+
         for pred in ambiguity.predicates:
             # Only predicates on type variables are resolvable ambiguities
             if not isinstance(pred.t, types.TVariable):
@@ -162,14 +227,14 @@ class Inference:
             return []
 
         # All classes must be standard classes
-        std_classes = ['Eq', 'Ord', 'Show', 'Read', 'Num']
+        std_classes = builtin.STD_CLASSES
         for c in class_names:
             if c not in std_classes:
                 return []
 
         candidate_types = []
         for t in self.default_types:
-            all_entailed = False
+            all_entailed = True
             for p in ambiguity.predicates:
                 # Does the predicate p hold for this candidate type t?
                 candidate_predicate = types.Predicate(p.tclass, t)
@@ -264,8 +329,7 @@ class Inference:
         ''' Returns the current predicate plus the predicates that you also get because their classes are superclasses of the current class. '''
         result = [predicate]
 
-        class_def = self.classes[predicate.tclass.name]
-        for superclass in class_def.supers:
+        for superclass in self.supers_for_class[predicate.tclass.name]:
             p = types.Predicate(superclass, predicate.t)
             result.extend(self.get_predicates_for_superclasses(p))
 
@@ -331,6 +395,25 @@ class Ambiguity:
     def __init__(self, type_variable, predicates):
         self.type_variable = type_variable
         self.predicates = predicates
+
+
+class Instance:
+    def __init__(self, predicates, tclass, t):
+        self.predicates = predicates
+        self.tclass = tclass
+        self.t = t
+
+    @classmethod
+    def from_qual_pred(cls, qual_pred):
+        return cls(qual_pred.predicates, qual_pred.t.tclass, qual_pred.t.t)
+
+    def get_predicates(self):
+        ''' Return the predicates that are required to use this instance. '''
+        return self.predicates
+
+    def get_predicate(self):
+        ''' Return the class implemented and the type implemented for as a predicate. '''
+        return types.Predicate(self.tclass, self.t)
 
 
 class Assumptions:

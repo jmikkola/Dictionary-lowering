@@ -31,3 +31,5 @@ TYPES = [
     'Bool',
     'List',
 ]
+
+STD_CLASSES = ['Eq', 'Ord', 'Show', 'Read', 'Num', 'Integral']

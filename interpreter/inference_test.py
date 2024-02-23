@@ -2,6 +2,7 @@ import unittest
 
 from interpreter import inference
 from interpreter import parser
+from interpreter import types
 
 
 class InferenceTest(unittest.TestCase):
@@ -56,3 +57,67 @@ class InferenceTest(unittest.TestCase):
         self.assertEqual({'a'}, call('(fn f (x) (new Item (a x)))'))
         self.assertEqual({'a'}, call('(fn f (x) (. (a x) field))'))
         self.assertEqual({'a'}, call('(fn f (x) (*partial* a x))'))
+
+    def test_candidates(self):
+        inf = inference.Inference(self.empty_program())
+
+        a = types.TypeVariable('a')
+        num = types.Predicate(types.TClass('Num'), types.TVariable(a))
+        show = types.Predicate(types.TClass('Show'), types.TVariable(a))
+        my_class = types.Predicate(types.TClass('MyClass'), types.TVariable(a))
+        integral = types.Predicate(types.TClass('Integral'), types.TVariable(a))
+
+        t_int = types.TConstructor('Int')
+        t_float = types.TConstructor('Float')
+
+        inf.add_class('MyClass', [])
+        inf._add_simple_instance('MyClass', 'Int')
+        inf._add_simple_instance('MyClass', 'Float')
+
+        # Num has candidates
+        candidates = inf.candidates(inference.Ambiguity(a, [num]))
+        self.assertEqual([t_int, t_float], candidates)
+
+        # Num and Show have candidates
+        candidates = inf.candidates(inference.Ambiguity(a, [num, show]))
+        self.assertEqual([t_int, t_float], candidates)
+
+        # Just Show doesn't have candidates
+        candidates = inf.candidates(inference.Ambiguity(a, [show]))
+        self.assertEqual([], candidates)
+
+        # Num with a user-defined type class doesn't have candidates
+        candidates = inf.candidates(inference.Ambiguity(a, [num, my_class]))
+        self.assertEqual([], candidates)
+
+        # Num with Integral returns just Int
+        candidates = inf.candidates(inference.Ambiguity(a, [integral, num]))
+        self.assertEqual([t_int], candidates)
+
+        # Does not resolve an ambiguity that is not in HNF:
+        t = types.TApplication(types.TConstructor('List'), [types.TVariable(a)])
+        num_t = types.Predicate(types.TClass('Num'), t)
+        candidates = inf.candidates(inference.Ambiguity(a, [num_t]))
+        self.assertEqual([], candidates)
+
+
+    def test_to_head_normal_form(self):
+        pass
+
+    def test_find_ambiguities(self):
+        pass
+
+    def test_by_instances(self):
+        pass
+
+    def test_instantiate(self):
+        pass
+
+    def test_generalize(self):
+        pass
+
+    def test_entails(self):
+        pass
+
+    def empty_program(self):
+        return parser.parse('')
