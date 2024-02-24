@@ -157,6 +157,53 @@ class Inference:
         # TODO
         pass
 
+    def infer_literal(self, lit: syntax.Literal):
+        # Integer literals can be used as any numeric type
+        if isinstance(lit, syntax.LInt):
+            tvar = self.next_type_var()
+            return ([pred("Num", tvar)], tvar)
+
+        # Other types are simpler
+        return ([], lit.get_type())
+
+    def infer_expression(self, assumptions, expr: syntax.Expression):
+        # TODO: handle user-defined expression types
+
+        if isinstance(expr, syntax.EVariable):
+            scheme = assumptions.get_scheme(expr.name)
+            qual = self.instantiate(scheme)
+            return (qual.predicates, qual.t)
+
+        elif isinstance(expr, syntax.ELiteral):
+            return self.infer_literal(expr.literal)
+
+        elif isinstance(expr, syntax.ECall):
+            pass
+
+        elif isinstance(expr, syntax.EConstruct):
+            pass
+
+        elif isinstance(expr, syntax.EPartial):
+            raise RuntimeError('Partial application should not exist until lowering')
+
+        elif isinstance(expr, syntax.EAccess):
+            pass
+
+        elif isinstance(expr, syntax.EAccess):
+            pass
+
+        elif isinstance(expr, syntax.ELet):
+            pass
+
+        elif isinstance(expr, syntax.EIf):
+            pass
+
+        elif isinstance(expr, syntax.ELambda):
+            pass
+
+        else:
+            raise RuntimeError(f'Unhandled type of expression: {expr}')
+
     def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
         pass
 
@@ -440,16 +487,19 @@ class Assumptions:
         self.assumptions = assumptions or {}
         self.parent = parent
 
-    def define(self, name, type):
-        self.assumptions[name] = type
+    def define(self, name, scheme: types.Scheme):
+        self.assumptions[name] = scheme
 
-    def get_type(self, name):
+    def get_scheme(self, name) -> types.Scheme:
         if name in self.assumptions:
             return self.assumptions[name]
         elif self.parent:
-            return self.parent.get_type(name)
+            return self.parent.get_scheme(name)
         else:
             raise RuntimeError(f'No type for {name}')
+
+    def make_child(self, assumptions=None):
+        return Assumptions(assumptions=assumptions, parent=self)
 
 
 def split_bindings(functions):
@@ -569,3 +619,7 @@ class Scope:
 
     def is_defined(self, name):
         return name in self.names or (self.parent and self.parent.is_defined(name))
+
+
+def pred(class_name, t):
+    return syntax.Predicate(types.TClass(class_name), t)
