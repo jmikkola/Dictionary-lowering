@@ -62,11 +62,13 @@ class Inference:
 
     def add_classes(self, classes):
         for cls in classes:
-            self.add_class(cls.class_name(), cls.supers)
+            name = cls.class_name()
+            self.class_names.add(name)
+            self.supers_for_class[name] = cls.supers
 
     def add_class(self, name: str, supers):
         self.class_names.add(name)
-        self.supers_for_class[name] = supers
+        self.supers_for_class[name] = [types.TClass(s) for s in supers]
 
     def add_instances(self, instances):
         for inst in instances:

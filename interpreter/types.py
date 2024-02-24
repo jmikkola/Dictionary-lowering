@@ -165,6 +165,7 @@ class TClass:
 
 class Predicate:
     def __init__(self, tclass: TClass, t: Type):
+        assert(isinstance(tclass, TClass))
         self.tclass = tclass
         self.t = t
 

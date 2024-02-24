@@ -241,7 +241,35 @@ class InferenceTest(unittest.TestCase):
         self.assertEqual(qt, result)
 
     def test_entails(self):
-        pass
+        inf = inference.Inference(self.empty_program())
+
+        # Predicates that are given by instances are entailed by themselves
+        p = predicate('(Num Int)')
+        self.assertTrue(inf.entails([], p))
+
+        p = predicate('(Show (List Int))')
+        self.assertTrue(inf.entails([], p))
+
+        # (Num Bool) is not entailed because there's no instance for that
+        p = predicate('(Num Bool)')
+        self.assertFalse(inf.entails([], p))
+
+        # (Show (List a)) is not entailed because the predicate (Show a) isn't given
+        p = predicate('(Show (List a))')
+        self.assertFalse(inf.entails([], p))
+
+        # A predicate is entailed if it appears in the list
+        p = predicate('(Num a)')
+        self.assertTrue(inf.entails([p], p))
+
+        # Or if there's an instance whose predicates are in the list
+        p = predicate('(Show (List a))')
+        self.assertTrue(inf.entails([predicate('(Show a)')], p))
+
+        # Or if a predicate in the list has a superclass that matches
+        p = predicate('(Eq a)')
+        self.assertTrue(inf.entails([predicate('(Ord a)')], p))
+
 
     def empty_program(self):
         return parser.parse('')
