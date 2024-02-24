@@ -222,7 +222,23 @@ class InferenceTest(unittest.TestCase):
         self.assertEqual(expected, scheme)
 
     def test_instantiate(self):
-        pass
+        inf = inference.Inference(self.empty_program())
+
+        a = types.TypeVariable('a')
+        b = types.TypeVariable('b')
+        qt = qualified('(Fn (Fn a b) (List a) (List b))')
+        scheme = types.Scheme.quantify([a, b], qt)
+
+        result = inf.instantiate(scheme)
+
+        qt = qualified('(Fn (Fn t1 t2) (List t1) (List t2))')
+        self.assertEqual(qt, result)
+
+        # Instantiating again gives fresh type variables
+        result = inf.instantiate(scheme)
+
+        qt = qualified('(Fn (Fn t3 t4) (List t3) (List t4))')
+        self.assertEqual(qt, result)
 
     def test_entails(self):
         pass

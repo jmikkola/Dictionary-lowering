@@ -70,6 +70,9 @@ class TGeneric(Type):
     def __eq__(self, o):
         return isinstance(o, TGeneric) and o.num == self.num
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def to_lisp(self):
         return str(self)
 

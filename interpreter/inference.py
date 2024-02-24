@@ -381,7 +381,7 @@ class Inference:
 
     def next_type_var(self):
         self.var_count += 1
-        return types.TVariable(f't{self.var_count}')
+        return types.TVariable.from_varname(f't{self.var_count}')
 
     def instantiate(self, scheme: types.Scheme):
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
