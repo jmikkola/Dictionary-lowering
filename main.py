@@ -10,13 +10,11 @@ def main(args):
 
     parse_result = parser.parse(text)
     check_result = check.check(parse_result)
-
-    lowering_input = lowering.LoweringInput(check_result)
-    lowering_output = lowering_input.lower()
+    lowering_result = lowering.lower(check_result)
 
     if '--render' in args:
         first = True
-        for lisp in lowering_output.to_lisp():
+        for lisp in lowering_result.to_lisp():
             if not first:
                 print()
             first = False
@@ -24,7 +22,7 @@ def main(args):
 
     else:
         intp = treewalker.Interpreter()
-        intp.load_program(lowering_output)
+        intp.load_program(lowering_result)
         intp.eval_main()
 
 

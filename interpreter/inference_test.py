@@ -270,6 +270,10 @@ class InferenceTest(unittest.TestCase):
         p = predicate('(Eq a)')
         self.assertTrue(inf.entails([predicate('(Ord a)')], p))
 
+        # A predicate that doesn't match:
+        p = predicate('(Eq a)')
+        self.assertFalse(inf.entails([predicate('(Ord b)')], p))
+
 
     def empty_program(self):
         return parser.parse('')

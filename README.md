@@ -55,7 +55,7 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 
 The next steps are:
 
-- Add a type inference pass (so the input doesn't have to be fully annotated with types)
+- [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
 - Add enum/tagged untion types (e.g. Some(x) | None)
 
 Things that would be nice to add:

@@ -37,6 +37,12 @@ from interpreter.types import (
 from interpreter.program import Program
 
 
+def lower(program: Program) -> Program:
+    ''' Lower the program to remove classes and instances '''
+    input = LoweringInput(program)
+    return input.lower()
+
+
 class LoweringInput:
     ''' This contains the inputs to the lowering pass '''
 
