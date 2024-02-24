@@ -455,6 +455,12 @@ def _parse_lists(text: str) -> list:
     return _parse_tokens(_tokenize(text))
 
 
+def _parse_one_list(text: str) -> list:
+    lists = _parse_lists(text)
+    assert(len(lists) == 1)
+    return lists[0]
+
+
 def _parse_tokens(tokens: list) -> list:
     ''' Converts tokens into s-expressions.
 

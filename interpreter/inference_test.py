@@ -103,36 +103,31 @@ class InferenceTest(unittest.TestCase):
     def test_to_head_normal_form(self):
         inf = inference.Inference(self.empty_program())
 
-        pred = lambda cls, t: types.Predicate(types.TClass(cls), t)
-
         # A predicate already in HNF
-        predicate = pred('Num', types.TVariable.from_varname('a'))
-        self.assertTrue(inf.in_head_normal_form(predicate))
-        self.assertEqual([predicate], inf.to_head_normal_form(predicate))
+        p = predicate('(Num a)')
+        self.assertTrue(inf.in_head_normal_form(p))
+        self.assertEqual([p], inf.to_head_normal_form(p))
 
         # Application of a type to a type variable
-        t = types.TApplication(
-            types.TVariable.from_varname('a'),
-            [types.TConstructor('Int')]
-        )
-        predicate = pred('Num', t)
-        self.assertTrue(inf.in_head_normal_form(predicate))
-        self.assertEqual([predicate], inf.to_head_normal_form(predicate))
+        p = predicate('(Num (a Int))')
+        self.assertTrue(inf.in_head_normal_form(p))
+        self.assertEqual([p], inf.to_head_normal_form(p))
 
         # A predicate with a concrete type that is given by the instances
-        predicate = pred('Num', types.TConstructor('Int'))
-        self.assertFalse(inf.in_head_normal_form(predicate))
-        self.assertEqual([], inf.to_head_normal_form(predicate))
+        p = predicate('(Num Int)')
+        self.assertFalse(inf.in_head_normal_form(p))
+        self.assertEqual([], inf.to_head_normal_form(p))
 
         # A predicate that can be replaced with a simpler predicate
-        t = types.TApplication(
-            types.TConstructor('List'),
-            [types.TVariable.from_varname('a')]
-        )
-        predicate = pred('Show', t)
-        self.assertFalse(inf.in_head_normal_form(predicate))
-        simpler_predicate = pred('Show', types.TVariable.from_varname('a'))
-        self.assertEqual([simpler_predicate], inf.to_head_normal_form(predicate))
+        p = predicate('(Show (List a))')
+        self.assertFalse(inf.in_head_normal_form(p))
+        simpler_predicate = predicate('(Show a)')
+        self.assertEqual([simpler_predicate], inf.to_head_normal_form(p))
+
+        # A predicate can get recursively replaced
+        p = predicate('(Show (List Int))')
+        self.assertFalse(inf.in_head_normal_form(p))
+        self.assertEqual([], inf.to_head_normal_form(p))
 
     def test_find_ambiguities(self):
         inf = inference.Inference(self.empty_program())
@@ -143,23 +138,23 @@ class InferenceTest(unittest.TestCase):
 
         # A predicate isn't ambiguous if the type variable is part of the binding's type
         type_variables = [a]
-        predicates = [types.Predicate(types.TClass('Num'), types.TVariable(a))]
+        predicates = [predicate('(Num a)')]
         ambiguities = inf.find_ambiguities(type_variables, predicates)
         self.assertEqual([], ambiguities)
 
         # A predicate is ambiguous if the type variable is not part of the binding's type
         type_variables = [a]
-        predicates = [types.Predicate(types.TClass('Num'), types.TVariable(b))]
+        predicates = [predicate('(Num b)')]
         ambiguities = inf.find_ambiguities(type_variables, predicates)
         self.assertEqual([inference.Ambiguity(b, predicates)], ambiguities)
 
         # Ambiguities are grouped by type variable
         type_variables = [a]
         predicates = [
-            types.Predicate(types.TClass('Num'), types.TVariable(a)),
-            types.Predicate(types.TClass('Num'), types.TVariable(b)),
-            types.Predicate(types.TClass('Ord'), types.TVariable(b)),
-            types.Predicate(types.TClass('Show'), types.TVariable(c)),
+            predicate('(Num a)'),
+            predicate('(Num b)'),
+            predicate('(Ord b)'),
+            predicate('(Show c)'),
         ]
         ambiguities = inf.find_ambiguities(type_variables, predicates)
         expected = [
@@ -168,9 +163,22 @@ class InferenceTest(unittest.TestCase):
         ]
         self.assertEqual(expected, ambiguities)
 
-
     def test_by_instances(self):
-        pass
+        inf = inference.Inference(self.empty_program())
+
+        # Returns None when there's no matching instance
+        p = predicate('(Num Bool)')
+        self.assertIsNone(inf.by_instances(p))
+
+        # Returns an empty list of predicates when there's a matching instance with
+        # no additional predicates.
+        p = predicate('(Num Int)')
+        self.assertEqual([], inf.by_instances(p))
+
+        # Return a predicate when the instance demands additional predicates
+        p = predicate('(Show (List a))')
+        expected = predicate('(Show a)')
+        self.assertEqual([expected], inf.by_instances(p))
 
     def test_instantiate(self):
         pass
@@ -183,3 +191,7 @@ class InferenceTest(unittest.TestCase):
 
     def empty_program(self):
         return parser.parse('')
+
+
+def predicate(text):
+    return parser._parse_predicate(parser._parse_one_list(text))
