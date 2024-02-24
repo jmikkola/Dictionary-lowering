@@ -180,10 +180,48 @@ class InferenceTest(unittest.TestCase):
         expected = predicate('(Show a)')
         self.assertEqual([expected], inf.by_instances(p))
 
-    def test_instantiate(self):
-        pass
+    def test_quanification(self):
+        a = types.TypeVariable('a')
+        b = types.TypeVariable('b')
 
-    def test_generalize(self):
+        # Generalizes over the type variables in a function's type
+        qt = qualified('(Fn (List a) b)')
+        scheme = types.Scheme.quantify([a, b], qt)
+
+        func_type = types.make_function_type(
+            [types.TApplication(types.TConstructor('List'), [types.TGeneric(0)])],
+            types.TGeneric(1)
+        )
+        qt2 = types.Qualified([], func_type)
+        expected = types.Scheme(n_vars=2, qualified=qt2)
+        self.assertEqual(expected, scheme)
+
+        # Does not generalize over a variable if it is not free in the type
+        qt = qualified('(Fn (List a) b)')
+        scheme = types.Scheme.quantify([b], qt)
+
+        func_type = types.make_function_type(
+            [types.TApplication(types.TConstructor('List'), [types.TVariable(a)])],
+            types.TGeneric(0)
+        )
+        qt2 = types.Qualified([], func_type)
+        expected = types.Scheme(n_vars=1, qualified=qt2)
+        self.assertEqual(expected, scheme)
+
+        # Generalizes predicates in the function's type
+        qt = qualified('(=> ((Show a)) (Fn (List a) String))')
+        scheme = types.Scheme.quantify([a], qt)
+
+        func_type = types.make_function_type(
+            [types.TApplication(types.TConstructor('List'), [types.TGeneric(0)])],
+            types.TConstructor('String')
+        )
+        predicate = types.Predicate(types.TClass('Show'), types.TGeneric(0))
+        qt2 = types.Qualified([predicate], func_type)
+        expected = types.Scheme(n_vars=1, qualified=qt2)
+        self.assertEqual(expected, scheme)
+
+    def test_instantiate(self):
         pass
 
     def test_entails(self):
@@ -195,3 +233,7 @@ class InferenceTest(unittest.TestCase):
 
 def predicate(text):
     return parser._parse_predicate(parser._parse_one_list(text))
+
+
+def qualified(text):
+    return parser._parse_qualified_type(parser._parse_one_list(text))
