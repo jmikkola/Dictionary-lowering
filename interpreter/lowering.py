@@ -21,17 +21,16 @@ This package assumes a few things about the input code:
 from interpreter import builtin
 
 from interpreter.syntax import (
-    Declaration, DFunction, ClassDef, InstanceDef, StructDef,
+    DFunction, InstanceDef, StructDef,
     Expression,
     ELambda, ELiteral, ECall, EConstruct, EIf,
-    EPartial, ELet, ELambda, Binding, EVariable,
-    MethodDecl, EAccess,
+    EPartial, ELet, Binding, EVariable,
+    EAccess,
 )
 
 from interpreter.types import (
-    Qualified, Type, Substitution, TClass, TypeError,
+    Type, Substitution, TClass, TypeError,
     Predicate, TConstructor, TApplication, TVariable,
-    TypeVariable,
     match, make_function_type, require_function_type,
 )
 

@@ -141,7 +141,7 @@ class Checker:
                 class_deps.append((c.class_name(), s.name))
         result = graph.topological_order(class_deps)
         if result is False:
-            raise CheckFailure(f'Class hierarchy cannot be cyclic')
+            raise CheckFailure('Class hierarchy cannot be cyclic')
 
     def _check_class(self, c):
         self._assert_unique(

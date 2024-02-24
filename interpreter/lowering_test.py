@@ -3,7 +3,6 @@ import unittest
 from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
-from interpreter import types
 from interpreter.program import Program
 
 
