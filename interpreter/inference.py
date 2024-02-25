@@ -295,22 +295,19 @@ class Inference:
                 binding.name: self.next_type_var()
                 for binding in expr.bindings
             }
-            # TODO: does this actually allow the type to be usefully instantiated?
-            new_assumptions = {
+            temp_assumptions = assumptions.make_child({
                 name: types.Scheme(0, types.Qualified([], tvar))
                 for (name, tvar) in binding_tvars.items()
-            }
-            inner_assumptions = assumptions.make_child(new_assumptions)
+            })
 
             predicates = []
+            binding_types = {}
 
             for binding in expr.bindings:
-                ps, binding_t = self.infer_expression(inner_assumptions, binding.value)
+                ps, binding_t = self.infer_expression(temp_assumptions, binding.value)
                 predicates.extend(ps)
+                binding_types[binding.name] = binding_t
                 self.unify_types(binding_t, binding_tvars[binding.name])
-
-            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner)
-            predicates.extend(ps)
 
             # TODO: Should this handle splitting predicates into
             # deferred/retained and applying the monomorphism restriction?
@@ -320,6 +317,31 @@ class Inference:
             # have predicates.)
             # (Keeping predicates on these bindings may require changing some
             # lowering logic)
+
+            # Update the types with the information learned after typing all the bindings
+            # (one binding might narrow the type of another)
+            binding_types = {
+                name: t.apply(self.substitution)
+                for (name, t) in binding_types.items()
+            }
+
+            # Find what type variables are actually new in these binding's types
+            # (vs. those already bound at some outer binding)
+            binding_vars = set()
+            for t in binding_types.values():
+                binding_vars |= t.free_type_vars()
+            free_vars = binding_vars - assumptions.free_type_vars()
+
+            # Now that the types of the bindings are known, use that information to
+            # generalize them.
+
+            inner_assumptions = assumptions.make_child({
+                name: self.quantify(free_vars, t)
+                for (name, t) in binding_types.items()
+            })
+
+            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner)
+            predicates.extend(ps)
 
             return (predicates, inner_t)
 
@@ -564,6 +586,12 @@ class Inference:
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
         return scheme.instantiate(fresh_types)
 
+    def quantify(self, tvars, t: types.Type) -> types.Scheme:
+        return types.Scheme.quantify(
+            tvars,
+            types.Qualified([], t)
+        )
+
     def generalize(self, t: types.Type) -> types.Scheme:
         return types.Scheme.quantify(
             t.free_type_vars(),
@@ -649,6 +677,14 @@ class Assumptions:
 
     def make_child(self, assumptions=None):
         return Assumptions(assumptions=assumptions, parent=self)
+
+    def free_type_vars(self):
+        tvars = set()
+        for scheme in self.assumptions.values():
+            tvars |= scheme.free_type_vars()
+        if self.parent is not None:
+            tvars |= self.parent.free_type_vars()
+        return tvars
 
 
 def split_bindings(functions):
