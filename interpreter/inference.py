@@ -169,6 +169,13 @@ class Inference:
     def infer_expression(self, assumptions, expr: syntax.Expression):
         # TODO: handle user-defined expression types
 
+        predicates, t = self._infer_expression(assumptions, expr)
+
+        expr.t = t
+
+        return (predicates, t)
+
+    def _infer_expression(self, assumptions, expr: syntax.Expression):
         if isinstance(expr, syntax.EVariable):
             scheme = assumptions.get_scheme(expr.name)
             qual = self.instantiate(scheme)
@@ -178,7 +185,29 @@ class Inference:
             return self.infer_literal(expr.literal)
 
         elif isinstance(expr, syntax.ECall):
-            pass
+            predicates, fn_type = self.infer_expression(assumptions, expr.f_expr)
+
+            arg_types = []  # type: typing.List[types.Type]
+            for arg in expr.arg_exprs:
+                ps, arg_t = self.infer_expression(assumptions, arg)
+                predicates.extend(ps)
+                arg_types.append(arg_t)
+
+            # Create a new type variable to represent the type returned by this
+            # expression
+            ret_type = self.next_type_var()
+
+            # Build a function type using the known arg types and that
+            # placeholder return type
+            expected_fn_type = types.make_function_type(arg_types, ret_type)
+
+            # Unify that type with the actual funciton's type. This will fail
+            # if the argument types don't work for that function. Assuming this
+            # succeeds, it will update the substitution so that it can update
+            # the return type to the actual final return type.
+            self.unify_types(expected_fn_type, fn_type)
+
+            return (predicates, ret_type)
 
         elif isinstance(expr, syntax.EConstruct):
             pass
@@ -187,10 +216,57 @@ class Inference:
             raise RuntimeError('Partial application should not exist until lowering')
 
         elif isinstance(expr, syntax.EAccess):
-            pass
+            predicates, inner_t = self.infer_expression(assumptions, expr.lhs)
+            field = expr.field
 
-        elif isinstance(expr, syntax.EAccess):
-            pass
+            # Require that type inference have already figured out the type
+            # well enough to know that it definitively is a struct type and
+            # which struct type it is.
+            # This will fail if the information seen so far hasn't been enough
+            # to determine the struct's type.
+            # It might be the case that other code later in the function would
+            # clarify what type of struct this is, but that isn't considered
+            # here. A more advanced algorithm might try to defer figuring out
+            # the kind of struct until the end of the function. This gets
+            # complicated when other types (including other struct accesses)
+            # depend on the type of this expression.
+            struct_name = types.require_type_constructor(inner_t)
+
+            # Look up the definition of the struct by name
+            struct_def = self.get_struct_def(struct_name)
+            # And look up the field within that struct being accessed
+            field_type = struct_def.find_field_type(expr.field)
+            if field_type is None:
+                raise types.TypeError(f'Struct {struct_name} does not have a field {expr.field}')
+
+            # Create a type like (Pair a b) out of the struct's definition
+            struct_type = self.struct_def_to_type(struct_def)
+            # Field access is effectively like a function that takes the struct
+            # value as an argument and returns the value of a field. This code
+            # creates a type for that imaginary function to do the type
+            # operations on. This isn't necessary, it's just for convenience.
+            # E.g. (Fn (Pair a b) a).
+            field_fn_type = types.make_function_type([struct_type], field_type)
+
+            # Convert that type to a scheme, like (Fn (Pair $0 $1) $0)
+            scheme = types.Scheme.quantify(
+                field_fn_type.free_type_vars(),
+                types.Qualified([], field_fn_type)
+            )
+            # Instantiate that scheme to get a unique type for the type variables,
+            # e.g. (Fn (Pair t10 t11) t10)
+            fresh_field_fn_type = self.instantiate(scheme)
+
+            # Now, similar to the code for ECall, create a type variable to
+            # represent the resulting type, then build a function type out of
+            # it.
+            ret_type = self.next_type_var()
+            expected_field_fn_type = types.make_function_type([inner_t], ret_type)
+
+            # And unify them to find out what ret_type ends up being
+            self.unify_types(expected_field_fn_type, fresh_field_fn_type)
+
+            return predicates, ret_type
 
         elif isinstance(expr, syntax.ELet):
             pass
@@ -436,12 +512,27 @@ class Inference:
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
         return scheme.instantiate(fresh_types)
 
-    def unify_types(self, t1, t2):
+    def unify_types(self, t1: types.Type, t2: types.Type):
         sub = types.most_general_unifier(
             t1.apply(self.substitution),
             t2.apply(self.substitution)
         )
         self.substitution = self.substitution.compose(sub)
+
+    def get_struct_def(self, struct_name: str):
+        for struct in self.program.structs:
+            if struct.name == struct_name:
+                return struct
+        raise types.TypeError('{struct_name} is not a struct')
+
+    def struct_def_to_type(self, struct_def: syntax.StructDef):
+        constructor = types.TConstructor(struct_def.name)
+
+        if not struct_def.type_vars:
+            return constructor
+
+        tvars = [types.TVariable(tv) for tv in struct_def.type_vars]
+        return types.TApplication(constructor, tvars)
 
 
 class Ambiguity:

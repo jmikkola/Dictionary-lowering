@@ -96,6 +96,9 @@ class LBool(Literal):
 
 
 class Expression:
+    def __init__(self, t):
+        self.t = t
+
     def get_type(self) -> Type:
         raise NotImplementedError
 
@@ -585,6 +588,11 @@ class StructDef:
             o.type_vars == self.type_vars and
             o.fields == self.fields
         )
+
+    def find_field_type(self, name):
+        for (field_name, t) in self.fields:
+            if field_name == name:
+                return t
 
     def to_lisp(self):
         if len(self.type_vars) == 0:

@@ -25,6 +25,9 @@ class Type:
     def free_type_vars(self):
         raise NotImplementedError
 
+    def apply(self, substitution):
+        raise NotImplementedError
+
 
 class TVariable(Type):
     def __init__(self, type_variable: TypeVariable):
@@ -421,3 +424,12 @@ def require_function_type(t: Type):
 def num_args(t: Type) -> int:
     args, _ret = require_function_type(t)
     return len(args)
+
+
+def require_type_constructor(t: Type):
+    if isinstance(t, TConstructor):
+        return t.type_name
+    elif isinstance(t, TApplication):
+        return require_type_constructor(t.t)
+    else:
+        raise TypeError(f'{t} must be a type constructor')
