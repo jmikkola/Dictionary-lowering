@@ -296,7 +296,7 @@ class Inference:
                 for binding in expr.bindings
             }
             temp_assumptions = assumptions.make_child({
-                name: types.Scheme(0, types.Qualified([], tvar))
+                name: types.Scheme.to_scheme(tvar)
                 for (name, tvar) in binding_tvars.items()
             })
 
@@ -365,7 +365,20 @@ class Inference:
             return (predicates, result_t)
 
         elif isinstance(expr, syntax.ELambda):
-            pass
+            # Compute the list first to ensure the order is stable
+            arg_tvars = [self.next_type_var() for _ in expr.arg_names]
+            arg_types = {
+                name: types.Scheme.to_scheme(tvar)
+                for (name, tvar) in zip(expr.arg_names, arg_tvars)
+            }
+            body_assumptions = assumptions.make_child(arg_schemes)
+
+            predicates, body_t = self.infer_expression(body_assumptions, expr.body)
+
+            # This type only gets generalized if it is bound to a name
+            # in a let binding.
+            lambda_t = types.make_function_type(arg_tvars, body_t)
+            return predicates, lambda_t
 
         else:
             raise RuntimeError(f'Unhandled type of expression: {expr}')
