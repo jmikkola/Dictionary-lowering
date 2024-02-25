@@ -589,6 +589,9 @@ class StructDef:
             o.fields == self.fields
         )
 
+    def get_field_types(self):
+        return [t for (_name, t) in self.fields]
+
     def find_field_type(self, name):
         for (field_name, t) in self.fields:
             if field_name == name:

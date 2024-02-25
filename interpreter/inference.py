@@ -210,7 +210,30 @@ class Inference:
             return (predicates, ret_type)
 
         elif isinstance(expr, syntax.EConstruct):
-            pass
+            struct_def = self.get_struct_def(expr.struct_name)
+
+            predicates = []
+            arg_types = []
+            for arg in expr.arg_exprs:
+                ps, arg_t = self.infer_expression(assumptions, arg)
+                predicates.extend(ps)
+                arg_types.append(arg_t)
+
+            struct_type = self.struct_def_to_type(struct_def)
+            field_types = struct_def.get_field_types()
+
+            if len(field_types) != len(arg_types):
+                raise TypeError(f'Struct {expr.struct_name} has {len(field_types)} fields but constructed with {len(arg_types)}')
+
+            # TODO: this type, plus the types of the field access "functions", could be precomputed
+            struct_fn_type = types.make_function_type(field_types, struct_type)
+
+            ret_type = self.next_type_var()
+            expected_fn_type = types.make_function_type(arg_types, ret_type)
+
+            self.unify_types(expected_fn_type, struct_fn_type)
+
+            return predicates, ret_type
 
         elif isinstance(expr, syntax.EPartial):
             raise RuntimeError('Partial application should not exist until lowering')
