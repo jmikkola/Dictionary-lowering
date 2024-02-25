@@ -346,7 +346,23 @@ class Inference:
             return (predicates, inner_t)
 
         elif isinstance(expr, syntax.EIf):
-            pass
+            predicates = []
+
+            ps, test_t = self.infer_expression(assumptions, expr.test)
+            self.unify_types(test_t, types.TConstructor('Bool'))
+            predicates.extend(ps)
+
+            ps, if_t = self.infer_expression(assumptions, expr.if_case)
+            predicates.extend(ps)
+
+            ps, else_t = self.infer_expression(assumptions, expr.else_case)
+            predicates.extend(ps)
+
+            result_t = self.next_type_var()
+            self.unify_types(result_t, if_t)
+            self.unify_types(result_t, else_t)
+
+            return (predicates, result_t)
 
         elif isinstance(expr, syntax.ELambda):
             pass
