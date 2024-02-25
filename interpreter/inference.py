@@ -102,7 +102,7 @@ class Inference:
 
         # Add the explicit types to the assumptions
         for f in explicit_typed:
-            assumptions[f.name] = f.type
+            assumptions[f.name] = self.generalize(f.type)
 
         # Infer the types of the implicitly typed functions
         for group in implicit_typed_groups:
@@ -240,7 +240,6 @@ class Inference:
 
         elif isinstance(expr, syntax.EAccess):
             predicates, inner_t = self.infer_expression(assumptions, expr.lhs)
-            field = expr.field
 
             # Require that type inference have already figured out the type
             # well enough to know that it definitively is a struct type and
@@ -292,7 +291,37 @@ class Inference:
             return predicates, ret_type
 
         elif isinstance(expr, syntax.ELet):
-            pass
+            binding_tvars = {
+                binding.name: self.next_type_var()
+                for binding in expr.bindings
+            }
+            # TODO: does this actually allow the type to be usefully instantiated?
+            new_assumptions = {
+                name: types.Scheme(0, types.Qualified([], tvar))
+                for (name, tvar) in binding_tvars.items()
+            }
+            inner_assumptions = assumptions.make_child(new_assumptions)
+
+            predicates = []
+
+            for binding in expr.bindings:
+                ps, binding_t = self.infer_expression(inner_assumptions, binding.value)
+                predicates.extend(ps)
+                self.unify_types(binding_t, binding_tvars[binding.name])
+
+            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner)
+            predicates.extend(ps)
+
+            # TODO: Should this handle splitting predicates into
+            # deferred/retained and applying the monomorphism restriction?
+            # Bindings that are not binding lambda functions should also have
+            # the monomorphism restriction applied.
+            # (Which doesn't mean the type can't generalize, just that it can't
+            # have predicates.)
+            # (Keeping predicates on these bindings may require changing some
+            # lowering logic)
+
+            return (predicates, inner_t)
 
         elif isinstance(expr, syntax.EIf):
             pass
@@ -535,6 +564,12 @@ class Inference:
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
         return scheme.instantiate(fresh_types)
 
+    def generalize(self, t: types.Type) -> types.Scheme:
+        return types.Scheme.quantify(
+            t.free_type_vars(),
+            types.Qualified([], t)
+        )
+
     def unify_types(self, t1: types.Type, t2: types.Type):
         sub = types.most_general_unifier(
             t1.apply(self.substitution),
@@ -736,4 +771,4 @@ class Scope:
 
 
 def pred(class_name, t):
-    return syntax.Predicate(types.TClass(class_name), t)
+    return types.Predicate(types.TClass(class_name), t)
