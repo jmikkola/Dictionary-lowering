@@ -351,6 +351,27 @@ class InferenceTest(unittest.TestCase):
         with self.assertRaises(types.TypeError):
             inf.infer_expression(assumptions, expression('z'))
 
+    def test_infer_call(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions({
+            'f': types.Scheme.quantify(
+                [types.TypeVariable('a')],
+                qualified('(=> ((Eq a)) (Fn a a))')
+            ),
+        })
+
+        expr = expression('(f "abc")')
+
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([predicate('(Eq t1)')], predicates)
+        predicates_subbed = inf.substitution.apply_to_list(predicates)
+        self.assertEqual([predicate('(Eq String)')], predicates_subbed)
+
+        self.assertEqual(type_('t2'), t)
+        t_subbed = t.apply(inf.substitution)
+        self.assertEqual(type_('String'), t_subbed)
+
+        self.assertEqual(expr.get_type(), t)
 
     def empty_program(self):
         return parser.parse('')
