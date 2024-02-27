@@ -223,7 +223,7 @@ class Inference:
             field_types = struct_def.get_field_types()
 
             if len(field_types) != len(arg_types):
-                raise TypeError(f'Struct {expr.struct_name} has {len(field_types)} fields but constructed with {len(arg_types)}')
+                raise types.TypeError(f'Struct {expr.struct_name} has {len(field_types)} fields but constructed with {len(arg_types)}')
 
             # TODO: this type, plus the types of the field access "functions", could be precomputed
             struct_fn_type = types.make_function_type(field_types, struct_type)

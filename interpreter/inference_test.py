@@ -373,6 +373,27 @@ class InferenceTest(unittest.TestCase):
 
         self.assertEqual(expr.get_type(), t)
 
+    def test_infer_construct(self):
+        text = '''
+(struct Point (:: x Int) (:: y Int))
+'''
+        program = parser.parse(text)
+        inf = inference.Inference(program)
+
+        assumptions = inference.Assumptions()
+
+        expr = expression("(new Point 1 2)")
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([predicate('(Num t1)'), predicate('(Num t2)')], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Point'), t)
+
+        with self.assertRaises(types.TypeError):
+            inf.infer_expression(assumptions, expression("(new Point 1 \"a\")"))
+
+        with self.assertRaises(types.TypeError):
+            inf.infer_expression(assumptions, expression("(new Point 1 2 3)"))
+
     def empty_program(self):
         return parser.parse('')
 
