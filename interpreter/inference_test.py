@@ -129,6 +129,11 @@ class InferenceTest(unittest.TestCase):
         self.assertFalse(inf.in_head_normal_form(p))
         self.assertEqual([], inf.to_head_normal_form(p))
 
+        # A predicate that doesn't match any instance
+        p = predicate('(Num Bool)')
+        with self.assertRaises(types.TypeError):
+            inf.to_head_normal_form(p)
+
     def test_find_ambiguities(self):
         inf = inference.Inference(self.empty_program())
 
@@ -274,6 +279,35 @@ class InferenceTest(unittest.TestCase):
         p = predicate('(Eq a)')
         self.assertFalse(inf.entails([predicate('(Ord b)')], p))
 
+    def test_simplify(self):
+        inf = inference.Inference(self.empty_program())
+
+        self.assertEqual([], inf.simplify([]))
+
+        # Keeps predicates that are not entailed
+        p = predicate('(Num a)')
+        self.assertEqual([p], inf.simplify([p]))
+
+        # Removes predicates that are given
+        p = predicate('(Num Int)')
+        self.assertEqual([], inf.simplify([p]))
+
+        # Deduplicates predicates
+        p = predicate('(Num a)')
+        self.assertEqual([p], inf.simplify([p, p]))
+
+    def test_reduce(self):
+        inf = inference.Inference(self.empty_program())
+
+        # Simplifies predicates
+        show_list = predicate('(Show (List a))')
+        show_a = predicate('(Show a)')
+        self.assertEqual([show_a], inf.reduce([show_list]))
+
+        # Keeps just the child class if a parent and child are both listed
+        eq_a = predicate('(Eq a)')
+        ord_a = predicate('(Ord a)')
+        self.assertEqual([ord_a], inf.reduce([eq_a, ord_a]))
 
     def empty_program(self):
         return parser.parse('')

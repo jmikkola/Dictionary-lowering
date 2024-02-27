@@ -367,7 +367,7 @@ class Inference:
         elif isinstance(expr, syntax.ELambda):
             # Compute the list first to ensure the order is stable
             arg_tvars = [self.next_type_var() for _ in expr.arg_names]
-            arg_types = {
+            arg_schemes = {
                 name: types.Scheme.to_scheme(tvar)
                 for (name, tvar) in zip(expr.arg_names, arg_tvars)
             }
@@ -592,7 +592,7 @@ class Inference:
 
         for i in range(len(predicates)):
             p = predicates[i]
-            other_predicates = predicates[:i] + predicates[i+1:]
+            other_predicates = results + predicates[i+1:]
             # Keep p in the output if it is not entailed by the other predicates
             if not self.entails(other_predicates, p):
                 results.append(p)
