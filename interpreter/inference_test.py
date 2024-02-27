@@ -394,6 +394,27 @@ class InferenceTest(unittest.TestCase):
         with self.assertRaises(types.TypeError):
             inf.infer_expression(assumptions, expression("(new Point 1 2 3)"))
 
+    def test_infer_generic_struct(self):
+        text = '''
+(struct (Pair a b) (:: first a) (:: second b))
+'''
+        program = parser.parse(text)
+        inf = inference.Inference(program)
+
+        assumptions = inference.Assumptions()
+
+        expr = expression('(new Pair "abc" false)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('(Pair String Bool)'), t)
+
+        expr = expression('(new Pair (new Pair "abc" 123.0) false)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('(Pair (Pair String Float) Bool)'), t)
+
     def empty_program(self):
         return parser.parse('')
 

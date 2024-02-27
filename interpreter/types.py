@@ -347,6 +347,9 @@ def most_general_unifier(l: Type, r: Type) -> Substitution:
     ''' find a substitution that, if applied to both l and r, will result in the same type.
 
     Raises a TypeError if no such substitution can be found. '''
+    assert(isinstance(l, Type))
+    assert(isinstance(r, Type))
+
     if isinstance(l, TVariable):
         return bind_type_var(l.type_variable, r)
 
@@ -372,7 +375,7 @@ def most_general_unifier(l: Type, r: Type) -> Substitution:
 
             return substitution
 
-    raise TypeError(f'Cannot unify {l} and {r}')
+    raise TypeError(f'Cannot unify {repr(l)} and {r}')
 
 
 def bind_type_var(var: TypeVariable, t: Type) -> Substitution:

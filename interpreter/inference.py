@@ -227,11 +227,18 @@ class Inference:
 
             # TODO: this type, plus the types of the field access "functions", could be precomputed
             struct_fn_type = types.make_function_type(field_types, struct_type)
+            scheme = types.Scheme.quantify(
+                struct_fn_type.free_type_vars(),
+                types.Qualified([], struct_fn_type)
+            )
+            # Instantiate that scheme to get a unique type for the type variables,
+            # e.g. (Fn t1 t2 (Pair t1 t2))
+            fresh_struct_fn_type = self.instantiate(scheme).t
 
             ret_type = self.next_type_var()
             expected_fn_type = types.make_function_type(arg_types, ret_type)
 
-            self.unify_types(expected_fn_type, struct_fn_type)
+            self.unify_types(expected_fn_type, fresh_struct_fn_type)
 
             return predicates, ret_type
 
@@ -277,7 +284,7 @@ class Inference:
             )
             # Instantiate that scheme to get a unique type for the type variables,
             # e.g. (Fn (Pair t10 t11) t10)
-            fresh_field_fn_type = self.instantiate(scheme)
+            fresh_field_fn_type = self.instantiate(scheme).t
 
             # Now, similar to the code for ECall, create a type variable to
             # represent the resulting type, then build a function type out of
