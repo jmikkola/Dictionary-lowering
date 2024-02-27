@@ -702,7 +702,7 @@ class Assumptions:
         elif self.parent:
             return self.parent.get_scheme(name)
         else:
-            raise RuntimeError(f'No type for {name}')
+            raise types.TypeError(f'No type for {name}')
 
     def make_child(self, assumptions=None):
         return Assumptions(assumptions=assumptions, parent=self)

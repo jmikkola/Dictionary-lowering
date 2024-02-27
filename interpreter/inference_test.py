@@ -309,6 +309,49 @@ class InferenceTest(unittest.TestCase):
         ord_a = predicate('(Ord a)')
         self.assertEqual([ord_a], inf.reduce([eq_a, ord_a]))
 
+    def test_infer_literal(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions()
+
+        predicates, t = inf.infer_expression(assumptions, expression('"abc"'))
+        self.assertEqual([], predicates)
+        self.assertEqual(types.TConstructor('String'), t)
+
+        predicates, t = inf.infer_expression(assumptions, expression('123.45'))
+        self.assertEqual([], predicates)
+        self.assertEqual(types.TConstructor('Float'), t)
+
+        predicates, t = inf.infer_expression(assumptions, expression('123'))
+        self.assertEqual([predicate('(Num t1)')], predicates)
+        self.assertEqual(types.TVariable.from_varname('t1'), t)
+
+        # Infering that again gives new type variables
+        predicates, t = inf.infer_expression(assumptions, expression('123'))
+        self.assertEqual([predicate('(Num t2)')], predicates)
+        self.assertEqual(types.TVariable.from_varname('t2'), t)
+
+    def test_infer_variable(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions({
+            'x': types.Scheme.quantify([], qualified('Int')),
+            'y': types.Scheme.quantify(
+                [types.TypeVariable('a')],
+                qualified('(=> ((Eq a)) (Fn a a))')
+            ),
+        })
+
+        predicates, t = inf.infer_expression(assumptions, expression('x'))
+        self.assertEqual([], predicates)
+        self.assertEqual(types.TConstructor('Int'), t)
+
+        predicates, t = inf.infer_expression(assumptions, expression('y'))
+        self.assertEqual([predicate('(Eq t1)')], predicates)
+        self.assertEqual(type_('(Fn t1 t1)'), t)
+
+        with self.assertRaises(types.TypeError):
+            inf.infer_expression(assumptions, expression('z'))
+
+
     def empty_program(self):
         return parser.parse('')
 
@@ -319,3 +362,11 @@ def predicate(text):
 
 def qualified(text):
     return parser._parse_qualified_type(parser._parse_one_list(text))
+
+
+def expression(text):
+    return parser._parse_expression(parser._parse_one_list(text))
+
+
+def type_(text):
+    return parser._parse_type(parser._parse_one_list(text))
