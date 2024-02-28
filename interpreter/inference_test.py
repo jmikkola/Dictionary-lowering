@@ -447,6 +447,60 @@ class InferenceTest(unittest.TestCase):
             expr = expression('(. "foo" x)')
             inf.infer_expression(assumptions, expr)
 
+    def test_infer_let(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions({
+            '*': types.Scheme.quantify(
+                [types.TypeVariable('a')],
+                qualified('(=> ((Num a)) (Fn a a a))')
+            ),
+            'var': types.Scheme.quantify(
+                [],
+                qualified('a')
+            ),
+            'show': types.Scheme.quantify(
+                [types.TypeVariable('a')],
+                qualified('(=> ((Show a)) (Fn a String))')
+            ),
+        })
+
+        # A simple let expression
+        expr = expression('(let ((x "abc") (y 123.0)) x)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('String'), t)
+
+        # A let expression where one value depends on the other
+        expr = expression('(let ((x 123.0) (y (* 2.0 x))) y)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates = inf.substitution.apply_to_list(predicates)
+        self.assertEqual([predicate('(Num Float)')], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Float'), t)
+
+        # Can surface predicates for variables referenced in the bindings
+        expr = expression('(let ((x (show var))) x)')
+        inf = inference.Inference(self.empty_program())
+        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates = inf.substitution.apply_to_list(predicates)
+        self.assertEqual([predicate('(Show t2)')], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('String'), t)
+
+        # A variable can be instantiated at multiple different types
+        expr = expression('(let ((id (\ (x) x))) ((id id) false))')
+        inf = inference.Inference(self.empty_program())
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Bool'), t)
+
+        # Other cases that would be interesting to test:
+        # - Mutually recursive functions defined in let bindings
+        # - Let bindings that retain their predicates
+        #   (e.g. `(x (\y (show y)))`)
+        # - A type that can't be instantiated in different ways due to defaulting
 
     def empty_program(self):
         return parser.parse('')
