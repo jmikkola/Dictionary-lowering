@@ -502,6 +502,55 @@ class InferenceTest(unittest.TestCase):
         #   (e.g. `(x (\y (show y)))`)
         # - A type that can't be instantiated in different ways due to defaulting
 
+    def test_infer_if(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions({
+            'var': types.Scheme.quantify(
+                [],
+                qualified('a')
+            ),
+        })
+
+        # If expression with matching types
+        expr = expression('(if true 1.0 2.0)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Float'), t)
+
+        # The test is forced to have the type Bool
+        expr = expression('(if var var var)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Bool'), t)
+
+        # Fails if the branches have different types
+        expr = expression('(if true "x" 2.0)')
+        with self.assertRaises(types.TypeError):
+            inf.infer_expression(assumptions, expr)
+
+        # Fails if the test isn't a boolean
+        expr = expression('(if "x" 2 3)')
+        with self.assertRaises(types.TypeError):
+            inf.infer_expression(assumptions, expr)
+
+    def test_infer_lambda(self):
+        inf = inference.Inference(self.empty_program())
+        assumptions = inference.Assumptions({})
+
+        # Very simple, no argument lambda
+        expr = expression('(\ () true)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        self.assertEqual(type_('(Fn Bool)'), t)
+
+        # A lambda that takes an argument
+        expr = expression('(\ (x) x)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        self.assertEqual(type_('(Fn t1 t1)'), t)
+
     def empty_program(self):
         return parser.parse('')
 
