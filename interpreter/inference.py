@@ -247,6 +247,7 @@ class Inference:
 
         elif isinstance(expr, syntax.EAccess):
             predicates, inner_t = self.infer_expression(assumptions, expr.lhs)
+            inner_t = inner_t.apply(self.substitution)
 
             # Require that type inference have already figured out the type
             # well enough to know that it definitively is a struct type and

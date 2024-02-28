@@ -415,6 +415,39 @@ class InferenceTest(unittest.TestCase):
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Pair (Pair String Float) Bool)'), t)
 
+    def test_infer_access(self):
+        text = '''
+(struct Point (:: x Int) (:: y Int))
+(struct (Pair a b) (:: first a) (:: second b))
+'''
+        program = parser.parse(text)
+        inf = inference.Inference(program)
+        assumptions = inference.Assumptions()
+
+        expr = expression('(. (new Point 1 2) x)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates = inf.substitution.apply_to_list(predicates)
+        self.assertEqual([predicate('(Num Int)'), predicate('(Num Int)')], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Int'), t)
+
+        # Nested access works
+        expr = expression('(. (. (new Pair (new Pair "abc" 123.0) false) first) second)')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        self.assertEqual([], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('Float'), t)
+
+        with self.assertRaises(types.TypeError):
+            # z is not a field of Point
+            expr = expression('(. (new Point 1 2) z)')
+            inf.infer_expression(assumptions, expr)
+
+        with self.assertRaises(types.TypeError):
+            expr = expression('(. "foo" x)')
+            inf.infer_expression(assumptions, expr)
+
+
     def empty_program(self):
         return parser.parse('')
 
