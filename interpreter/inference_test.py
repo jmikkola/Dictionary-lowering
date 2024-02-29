@@ -607,6 +607,31 @@ class InferenceTest(unittest.TestCase):
         )
         self.assertEqual(expected, scheme)
 
+    def test_resolvable_ambiguity(self):
+        text = '''
+(fn f () (show 1))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.functions[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify(
+            [], qualified('(Fn String)')
+        )
+        self.assertEqual(expected, scheme)
+
+    def test_unresolvable_ambiguity(self):
+        text = '''
+(fn f () (show (read "")))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        with self.assertRaises(types.TypeError) as cm:
+            inf.infer()
+        self.assertIn('No default type', str(cm.exception))
+
     def empty_program(self):
         return parser.parse('')
 

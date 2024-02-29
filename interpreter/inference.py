@@ -29,6 +29,9 @@ class Inference:
 
         self.default_types = [types.TConstructor('Int'), types.TConstructor('Float')]
 
+        self.add_builtins()
+
+    def add_builtins(self):
         # Add built-in classes. These aren't exactly Haskell's classes.
         self.add_class('Eq', [])
         self.add_class('Ord', ['Eq'])
@@ -61,12 +64,23 @@ class Inference:
 
         self._add_simple_instance('Integral', 'Int')
 
-        # TODO: Add assumptions for the methods in these classes, then remove those assumptions from tests
-        self._parse_and_add_assumption('==', '(=> ((Eq a)) (Fn a a Bool))')
+        for op in ['==', '!=']:
+            self._parse_and_add_assumption(op, '(=> ((Eq a)) (Fn a a Bool))')
         for op in ['<', '>', '<=', '>=']:
             self._parse_and_add_assumption(op, '(=> ((Ord a)) (Fn a a Bool))')
         for op in ['+', '-', '*', '/']:
             self._parse_and_add_assumption(op, '(=> ((Num a)) (Fn a a a))')
+        self._parse_and_add_assumption('show', '(=> ((Show a)) (Fn a String))')
+        self._parse_and_add_assumption('read', '(=> ((Read a)) (Fn String a))')
+        self._parse_and_add_assumption('%', '(=> ((Integral a)) (Fn a a a))')
+
+        self._parse_and_add_assumption('str', '(Fn a String)')
+        self._parse_and_add_assumption('inc', '(Fn Int Int Int)')
+        self._parse_and_add_assumption('and', '(Fn Bool Bool Bool)')
+        self._parse_and_add_assumption('or', '(Fn Bool Bool Bool)')
+        self._parse_and_add_assumption('not', '(Fn Bool Bool)')
+        self._parse_and_add_assumption('print', '(Fn a Void)')
+        self._parse_and_add_assumption('concat', '(Fn String String String)')
 
     def add_classes(self, classes):
         for cls in classes:
