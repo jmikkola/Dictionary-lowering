@@ -43,6 +43,18 @@ class TypesTest(unittest.TestCase):
         }
         self.assertEqual(expected, result.substitutions)
 
+    def test_unifies_more_complex_types(self):
+        l = parse_type('(Fn t2 t3 t8)')
+        r = parse_type('(Fn t1 t1 Bool)')
+        result = types.most_general_unifier(l, r)
+
+        expected = {
+            types.TypeVariable('t8'): parse_type('Bool'),
+            types.TypeVariable('t2'): parse_type('t1'),
+            types.TypeVariable('t3'): parse_type('t1'),
+        }
+        self.assertEqual(expected, result.substitutions)
+
     def test_occurs_check(self):
         l = parse_type('(Fn b b)')
         r = parse_type('(Fn a (Fn a a))')

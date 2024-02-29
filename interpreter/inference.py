@@ -175,7 +175,11 @@ class Inference:
 
         # Add the types of the explicitly-typed functions to the assumptions
         for f in explicit_typed:
-            assumptions[f.name] = self.generalize(f.type)
+            qual_type = f.t
+            assumptions[f.name] = types.Scheme.quantify(
+                qual_type.free_type_vars(),
+                qual_type
+            )
 
         # Class methods are another source of functions with known types
         for cls in self.program.classes:
@@ -251,8 +255,45 @@ class Inference:
 
     def infer_explicit(self, assumptions, function):
         ''' Infers the type of the given explicitly-typed function. '''
-        # TODO
-        return []
+        assert(isinstance(assumptions, Assumptions))
+        assert(isinstance(function, syntax.DFunction))
+
+        # The scheme for function should have been already written to the assumptions
+        scheme = assumptions.get_scheme(function.name)
+        function_type = self.instantiate(scheme)
+
+        predicates, inferred_type = self.infer_function(assumptions, function)
+        self.unify_types(inferred_type, function_type.t)
+
+        function_type = function_type.apply(self.substitution)
+
+        # Find the type variables that are used only in the function's type
+        binding_tvars = assumptions.apply(self.substitution).free_type_vars()
+        function_tvars = function_type.t.free_type_vars() - binding_tvars
+
+        # Create a new scheme from what inference learned about the function's type
+        updated_scheme = types.Scheme.quantify(function_tvars, function_type)
+
+        # This would happen if any of the type variables in the user-defined type
+        # got replaced with a concrete type.
+        if updated_scheme != scheme:
+            raise types.TypeError(f'Type signature too general for {function.name}')
+
+        predicates = self.substitution.apply_to_list(predicates)
+
+        # Find predicates that aren't entailed by the predicates in the user-defined type
+        new_predicates = [
+            p for p in predicates
+            if not self.entails(function_type.predicates, p)
+        ]
+
+        deferred, retained = self.split(binding_tvars, function_tvars, new_predicates)
+
+        if retained:
+            raise types.TypeError(f'The signature for {function.name} is missing predicates {retained}')
+
+        function.t = updated_scheme
+        return deferred
 
     def infer_instances(self, assumptions, instances):
         ''' Infers the types of the given instances. '''

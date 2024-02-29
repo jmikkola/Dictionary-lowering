@@ -632,6 +632,58 @@ class InferenceTest(unittest.TestCase):
             inf.infer()
         self.assertIn('No default type', str(cm.exception))
 
+    def test_explicit_typed_function(self):
+        text = '''
+(fn f (x) (Fn Int Int) x)
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.functions[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify(
+            [], qualified('(Fn Int Int)')
+        )
+        self.assertEqual(expected, scheme)
+
+    def test_explicit_typed_function_with_predicates(self):
+        text = '''
+(fn f (x y)
+  (=> ((Ord a)) (Fn a a Bool))
+  (or (< x y) (> x y)))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.functions[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify(
+            [types.TypeVariable('a')],
+            qualified('(=> ((Ord a)) (Fn a a Bool))')
+        )
+        self.assertEqual(expected, scheme)
+
+    def test_explicit_typed_function_too_general_type_sig(self):
+        text = '''
+(fn f (x) (Fn a a)
+    "a string not any type")
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        with self.assertRaises(types.TypeError) as cm:
+            inf.infer()
+        self.assertIn('Type signature too general', str(cm.exception))
+
+    # Test mutually recursive functions
+    # Test multiple predicates that can be simplified
+    # Test deferred predicates on inner let bindings
+    # Test handling explicitly typed bindings
+    # Test handling user-defined types
+    # Test checking the types of instance implementations
+    # Test that finalized types are written back to the resulting code
+
     def empty_program(self):
         return parser.parse('')
 
