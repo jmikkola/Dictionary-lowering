@@ -551,6 +551,30 @@ class InferenceTest(unittest.TestCase):
         self.assertEqual([], predicates)
         self.assertEqual(type_('(Fn t1 t1)'), t)
 
+    def test_get_assumptions_for_functions(self):
+        text = '''
+(class (Next n)
+  (:: next (Fn n n)))
+'''
+        inf = inference.Inference(parser.parse(text))
+        assumptions = inf.get_assumptions_for_functions([])
+
+        gen0 = types.TGeneric(0)
+        p = types.Predicate(types.TClass('Next'), gen0)
+        t = types.make_function_type([gen0], gen0)
+        expected = {
+            'next': types.Scheme(1, types.Qualified([p], t))
+        }
+        self.assertEqual(expected, assumptions.assumptions)
+
+        # Make use of those assumptions:
+        expr = expression('(\ (x) (next x))')
+        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates = inf.substitution.apply_to_list(predicates)
+        self.assertEqual([predicate('(Next t2)')], predicates)
+        t = t.apply(inf.substitution)
+        self.assertEqual(type_('(Fn t2 t2)'), t)
+
     def empty_program(self):
         return parser.parse('')
 

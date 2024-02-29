@@ -498,6 +498,9 @@ class ClassDef:
             o.methods == self.methods
         )
 
+    def get_class_predicate(self):
+        return types.Predicate(self.tclass, types.TVariable(self.tvar))
+
     def method_names(self):
         return set(m.method_name for m in self.methods)
 

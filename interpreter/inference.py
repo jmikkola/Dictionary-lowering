@@ -98,25 +98,21 @@ class Inference:
         explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
 
         predicates = []
-        assumptions = {}
-
-        # Add the explicit types to the assumptions
-        for f in explicit_typed:
-            assumptions[f.name] = self.generalize(f.type)
+        assumptions = self.get_assumptions_for_functions(explicit_typed)
 
         # Infer the types of the implicitly typed functions
         for group in implicit_typed_groups:
-            preds, aspts = self.infer_group(group, Assumptions(assumptions))
+            preds, aspts = self.infer_group(group, assumptions)
             predicates.extend(preds)
             assumptions.update(aspts)
 
         # Check that the types of explicitly typed functions are valid
         for f in explicit_typed:
-            preds = self.infer_explicit(f, Assumptions(assumptions))
+            preds = self.infer_explicit(f, assumptions)
             predicates.extend(preds)
 
         # Finally, check the types of types in instances
-        instances = self.infer_instances(self.program.instances, Assumptions(assumptions))
+        instances = self.infer_instances(self.program.instances, assumptions)
 
         # Update the predicates with the current substitution
         predicates = self.substitution.apply_to_list(predicates)
@@ -141,6 +137,25 @@ class Inference:
             classes=self.program.classes,
             instances=typed_instances,
         )
+
+    def get_assumptions_for_functions(self, explicit_typed):
+        assumptions = {}
+        for f in explicit_typed:
+            assumptions[f.name] = self.generalize(f.type)
+        for cls in self.program.classes:
+            class_predicate = cls.get_class_predicate()
+            for method in cls.methods:
+                method_qual = types.Qualified(
+                    [class_predicate] + method.qual_type.predicates,
+                    method.qual_type.t
+                )
+                method_scheme = types.Scheme.quantify(
+                    method_qual.free_type_vars(),
+                    method_qual
+                )
+                assumptions[method.method_name] = method_scheme
+
+        return Assumptions(assumptions)
 
     def infer_group(self, functions, assumptions):
         ''' Infers the types of the given group of implicitly-typed functions. '''
