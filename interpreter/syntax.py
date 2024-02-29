@@ -1,5 +1,7 @@
 # module syntax
 
+import typing
+
 from interpreter import types
 from interpreter.types import Type, TClass, TypeVariable, Qualified, TConstructor
 
@@ -472,7 +474,7 @@ class ClassDef:
         self.tclass = tclass
         self.supers = supers
         self.tvar = tvar
-        self.methods = methods
+        self.methods = methods  # type: typing.List[MethodDecl]
 
     def __str__(self):
         super_part = ''
@@ -526,7 +528,7 @@ class InstanceDef:
     # method_name: list[DFunction]
     def __init__(self, qual_pred: Qualified, method_impls: list):
         self.qual_pred = qual_pred
-        self.method_impls = method_impls
+        self.method_impls = method_impls  # type: typing.List[DFunction]
 
     def __str__(self):
         result = f'instance {self.qual_pred} where'

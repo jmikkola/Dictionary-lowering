@@ -676,6 +676,59 @@ class InferenceTest(unittest.TestCase):
             inf.infer()
         self.assertIn('Type signature too general', str(cm.exception))
 
+    def test_explicit_typed_function_with_insufficient_predicates(self):
+        text = '''
+(fn f (x y)
+  (=> ((Eq a)) (Fn a a Bool))
+  (or (< x y) (> x y)))
+'''
+        program = parser.parse(text)
+
+        with self.assertRaises(types.TypeError) as cm:
+            inference.infer_types(program)
+        self.assertIn('is missing predicates', str(cm.exception))
+
+    def test_checks_types_of_instance_methods(self):
+        text = '''
+(struct Point
+  (:: x Int)
+  (:: y Int))
+
+(class (ToString a)
+  (:: to_string (Fn a String)))
+
+(instance (ToString Point)
+  (fn to_string (p) "TODO"))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.instances[0].method_impls[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify(
+            [types.TypeVariable('a')],
+            qualified('(Fn a String)')
+        )
+        self.assertEqual(expected, scheme)
+
+    def test_checks_types_of_instance_methods_with_incorrect_type(self):
+        text = '''
+(struct Point
+  (:: x Int)
+  (:: y Int))
+
+(class (ToString a)
+  (:: to_string (Fn a String)))
+
+(instance (ToString Point)
+  (fn to_string (p) false))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        with self.assertRaises(types.TypeError):
+            inf.infer()
+
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings
@@ -683,6 +736,10 @@ class InferenceTest(unittest.TestCase):
     # Test handling user-defined types
     # Test checking the types of instance implementations
     # Test that finalized types are written back to the resulting code
+    # Test instances with instance predicates
+    # Test instances that use superclasses of the current class
+    # TODO: When an instance is defined, nothing checks that instances are also
+    #   defined for that class's superclasses.
 
     def empty_program(self):
         return parser.parse('')

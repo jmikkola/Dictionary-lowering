@@ -1,5 +1,9 @@
 # module program
 
+import typing
+
+from interpreter import syntax
+
 class Program:
     ''' Program holds the contents of a program.
 
@@ -12,11 +16,11 @@ class Program:
     # classes: list[syntax.ClassDef]
     # instances: list[syntax.InstanceDef]
     def __init__(self, from_stage, functions, structs, classes, instances):
-        self.from_stage = from_stage
-        self.functions = functions
-        self.structs = structs
-        self.classes = classes
-        self.instances = instances
+        self.from_stage = from_stage  # type: str
+        self.functions = functions  # type: typing.List[syntax.DFunction]
+        self.structs = structs  # type: typing.List[syntax.StructDef]
+        self.classes = classes  # type: typing.List[syntax.ClassDef]
+        self.instances = instances # type: typing.List[syntax.InstanceDef]
 
     def to_lisp(self):
         lisp = [f.to_lisp() for f in self.functions]
@@ -50,3 +54,9 @@ class Program:
         c = repr(self.classes)
         i = repr(self.instances)
         return f'Program({stage}, {f}, {s}, {c}, {i})'
+
+    def get_class(self, name: str):
+        for c in self.classes:
+            if c.class_name() == name:
+                return c
+        return None

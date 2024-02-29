@@ -33,6 +33,8 @@ class Inference:
 
     def add_builtins(self):
         # Add built-in classes. These aren't exactly Haskell's classes.
+        # TODO: Add actual ClassDef definitions of these classes so that implementations
+        # can use the type of the declared methods
         self.add_class('Eq', [])
         self.add_class('Ord', ['Eq'])
         self.add_class('Show', [])
@@ -94,7 +96,7 @@ class Inference:
 
     def add_instances(self, instances):
         for inst in instances:
-            class_name = inst.tclass.name
+            class_name = inst.get_class().name
             self.add_instance(class_name, Instance.from_qual_pred(inst.qual_pred))
 
     def add_instance(self, class_name, inst):
@@ -295,11 +297,6 @@ class Inference:
         function.t = updated_scheme
         return deferred
 
-    def infer_instances(self, assumptions, instances):
-        ''' Infers the types of the given instances. '''
-        # TODO
-        return instances
-
     def infer_function(self, assumptions, function):
         arg_tvars = {
             arg: self.next_type_var()
@@ -317,6 +314,42 @@ class Inference:
         )
 
         return predicates, function_type
+
+    def infer_instances(self, assumptions, instances):
+        ''' Infers the types of the given instances. '''
+        assert(isinstance(assumptions, Assumptions))
+
+        for instance in instances:
+            assert(isinstance(instance, syntax.InstanceDef))
+
+            # Find the associated class
+            class_def = self.program.get_class(instance.get_class().name)
+
+            # Get any prediates on the instance,
+            # e.g. if the instance is for (=> ((Show a)) (Show (List a))),
+            # then this would be [(Show a)].
+            inst_preds = instance.get_predicates()
+
+            for method_impl in instance.method_impls:
+                method_def = class_def.get_method(method_impl.name)
+
+                method_qual = types.Qualified(
+                    inst_preds + method_def.qual_type.predicates,
+                    method_def.qual_type.t
+                )
+                method_scheme = types.Scheme.quantify(
+                    method_qual.free_type_vars(),
+                    method_qual
+                )
+
+                # Turn this into a (temporary!) assumption about the instance method's type
+                temp_assumptions = assumptions.make_child({
+                    method_impl.name: method_scheme
+                })
+
+                self.infer_explicit(temp_assumptions, method_impl)
+
+        return instances
 
     def infer_literal(self, lit: syntax.Literal):
         # Integer literals can be used as any numeric type
