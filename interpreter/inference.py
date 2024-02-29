@@ -25,6 +25,7 @@ class Inference:
         self.class_names = set()  # type: typing.Set[str]
         self.supers_for_class = {}  # type: typing.Dict[str, typing.List[types.TClass]]
         self.instances = defaultdict(list)  # type: typing.Dict[str, typing.List[Instance]]
+        self.builtin_assumptions = Assumptions()
 
         self.default_types = [types.TConstructor('Int'), types.TConstructor('Float')]
 
@@ -60,6 +61,13 @@ class Inference:
 
         self._add_simple_instance('Integral', 'Int')
 
+        # TODO: Add assumptions for the methods in these classes, then remove those assumptions from tests
+        self._parse_and_add_assumption('==', '(=> ((Eq a)) (Fn a a Bool))')
+        for op in ['<', '>', '<=', '>=']:
+            self._parse_and_add_assumption(op, '(=> ((Ord a)) (Fn a a Bool))')
+        for op in ['+', '-', '*', '/']:
+            self._parse_and_add_assumption(op, '(=> ((Num a)) (Fn a a a))')
+
     def add_classes(self, classes):
         for cls in classes:
             name = cls.class_name()
@@ -90,6 +98,12 @@ class Inference:
         qual_pred = parser._parse_qualified_predicate(sexpr)
         self.add_instance(qual_pred.t.tclass.name, Instance.from_qual_pred(qual_pred))
 
+    def _parse_and_add_assumption(self, name: str, qual_type_text: str):
+        sexpr = parser._parse_one_list(qual_type_text)
+        qual_type = parser._parse_qualified_type(sexpr)
+        scheme = types.Scheme.quantify(qual_type.free_type_vars(), qual_type)
+        self.builtin_assumptions.define(name, scheme)
+
     def infer(self):
         self.add_classes(self.program.classes)
         self.add_instances(self.program.instances)
@@ -98,21 +112,25 @@ class Inference:
         explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
 
         predicates = []
-        assumptions = self.get_assumptions_for_functions(explicit_typed)
+        assumptions = self.builtin_assumptions.make_child(
+            self.get_assumptions_for_functions(explicit_typed)
+        )
 
         # Infer the types of the implicitly typed functions
         for group in implicit_typed_groups:
-            preds, aspts = self.infer_group(group, assumptions)
+            preds, new_assumptions = self.infer_implicit_group(assumptions, group)
+
             predicates.extend(preds)
-            assumptions.update(aspts)
+            for (name, t) in new_assumptions.items():
+                assumptions.define(name, t)
 
         # Check that the types of explicitly typed functions are valid
         for f in explicit_typed:
-            preds = self.infer_explicit(f, assumptions)
+            preds = self.infer_explicit(assumptions, f)
             predicates.extend(preds)
 
         # Finally, check the types of types in instances
-        instances = self.infer_instances(self.program.instances, assumptions)
+        instances = self.infer_instances(assumptions, self.program.instances)
 
         # Update the predicates with the current substitution
         predicates = self.substitution.apply_to_list(predicates)
@@ -140,8 +158,12 @@ class Inference:
 
     def get_assumptions_for_functions(self, explicit_typed):
         assumptions = {}
+
+        # Add the types of the explicitly-typed functions to the assumptions
         for f in explicit_typed:
             assumptions[f.name] = self.generalize(f.type)
+
+        # Class methods are another source of functions with known types
         for cls in self.program.classes:
             class_predicate = cls.get_class_predicate()
             for method in cls.methods:
@@ -155,22 +177,91 @@ class Inference:
                 )
                 assumptions[method.method_name] = method_scheme
 
-        return Assumptions(assumptions)
+        return assumptions
 
-    def infer_group(self, functions, assumptions):
+    def infer_implicit_group(self, global_assumptions, functions):
         ''' Infers the types of the given group of implicitly-typed functions. '''
-        # TODO
-        pass
+        assert(isinstance(global_assumptions, Assumptions))
 
-    def infer_explicit(self, function, assumptions):
+        # Create a type variable to represent the type of each function
+        tvars = {
+            f.name: self.next_type_var()
+            for f in functions
+        }
+
+        # Create a new set of assumptions in which all these functions are defined
+        assumptions = global_assumptions.make_child({
+            name: types.Scheme.to_scheme(tvar)
+            for (name, tvar) in tvars.items()
+        })
+
+        predicates = []
+
+        for function in functions:
+            assert(isinstance(function, syntax.DFunction))
+            preds, t = self.infer_function(assumptions, function)
+            self.unify_types(t, tvars[function.name])
+            predicates.extend(preds)
+
+        predicates = self.substitution.apply_to_list(predicates)
+        function_types = {
+            name: t.apply(self.substitution)
+            for (name, t) in tvars.items()
+        }
+
+        updated_assumptions = global_assumptions.apply(self.substitution)
+        context_tvars = updated_assumptions.free_type_vars()
+
+        binding_tvars = set()
+        for t in function_types.values():
+            binding_tvars |= t.free_type_vars()
+        binding_tvars -= context_tvars
+
+        deferred, retained = self.split(context_tvars, binding_tvars, predicates)
+
+        # Since all top-level bindings in this language are functions,
+        # the monomorphism restriction never applies here.
+
+        # Sort the predicates in a stable order to make tests reliable
+        retained = sorted(retained, key=lambda p: (p.tclass.name, str(p.t)))
+        function_schemes = {
+            name: types.Scheme.quantify(binding_tvars, types.Qualified(retained, t))
+            for (name, t) in function_types.items()
+        }
+
+        # Save the resulting schemes back to the functions
+        for function in functions:
+            function.t = function_schemes[function.name]
+
+        return deferred, function_schemes
+
+    def infer_explicit(self, assumptions, function):
         ''' Infers the type of the given explicitly-typed function. '''
         # TODO
-        pass
+        return []
 
-    def infer_instances(self, instances, assumptions):
+    def infer_instances(self, assumptions, instances):
         ''' Infers the types of the given instances. '''
         # TODO
-        pass
+        return instances
+
+    def infer_function(self, assumptions, function):
+        arg_tvars = {
+            arg: self.next_type_var()
+            for arg in function.arg_names
+        }
+        function_assumptions = assumptions.make_child({
+            arg: types.Scheme.to_scheme(tvar)
+            for (arg, tvar) in arg_tvars.items()
+        })
+
+        predicates, body_type = self.infer_expression(function_assumptions, function.body)
+        function_type = types.make_function_type(
+            [arg_tvars[arg] for arg in function.arg_names],
+            body_type
+        )
+
+        return predicates, function_type
 
     def infer_literal(self, lit: syntax.Literal):
         # Integer literals can be used as any numeric type
@@ -191,6 +282,8 @@ class Inference:
         return (predicates, t)
 
     def _infer_expression(self, assumptions, expr: syntax.Expression):
+        assert(isinstance(assumptions, Assumptions))
+
         if isinstance(expr, syntax.EVariable):
             scheme = assumptions.get_scheme(expr.name)
             qual = self.instantiate(scheme)
@@ -407,10 +500,12 @@ class Inference:
             raise RuntimeError(f'Unhandled type of expression: {expr}')
 
     def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
-        pass
+        # TODO: apply the substitution to the types of the functions
+        return explicit_typed + [f for group in implicit_typed_groups for f in group]
 
     def apply_types_to_instances(self, instances):
-        pass
+        # TODO: apply the substitution to the types of the instances
+        return instances
 
     def split(self, context_tvars, binding_tvars, predicates):
         predicates = self.reduce(predicates)
@@ -421,14 +516,15 @@ class Inference:
         retained = []
 
         for predicate in predicates:
-            pred_tvars = predicate.t.type_variables()
+            assert(isinstance(predicate, types.Predicate))
+            pred_tvars = predicate.t.free_type_vars()
             # check if all type varibles in the predicate are from the context:
             if pred_tvars.issubset(context_tvar_set):
                 deferred.append(predicate)
             else:
                 retained.append(predicate)
 
-        defaulted = self.defaulted_predicates(context_tvars + binding_tvars, retained)
+        defaulted = self.defaulted_predicates(context_tvars | binding_tvars, retained)
 
         retained = [
             p for p in retained
@@ -713,8 +809,8 @@ class Instance:
 
 class Assumptions:
     def __init__(self, assumptions=None, parent=None):
-        self.assumptions = assumptions or {}
-        self.parent = parent
+        self.assumptions = assumptions or {}  # type: typing.Dict[str, types.Scheme]
+        self.parent = parent  # type: None | Assumptions
 
     def define(self, name, scheme: types.Scheme):
         self.assumptions[name] = scheme
@@ -737,6 +833,15 @@ class Assumptions:
         if self.parent is not None:
             tvars |= self.parent.free_type_vars()
         return tvars
+
+    def apply(self, substitution: types.Substitution):
+        return Assumptions(
+            {
+                name: scheme.apply(substitution)
+                for (name, scheme) in self.assumptions.items()
+            },
+            parent=self.parent and self.parent.apply(substitution)
+        )
 
 
 def split_bindings(functions):

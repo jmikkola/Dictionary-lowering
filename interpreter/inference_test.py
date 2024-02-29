@@ -565,15 +565,47 @@ class InferenceTest(unittest.TestCase):
         expected = {
             'next': types.Scheme(1, types.Qualified([p], t))
         }
-        self.assertEqual(expected, assumptions.assumptions)
+        self.assertEqual(expected, assumptions)
 
         # Make use of those assumptions:
         expr = expression('(\ (x) (next x))')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(inference.Assumptions(assumptions), expr)
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Next t2)')], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Fn t2 t2)'), t)
+
+    def test_infer_single_implicit_function(self):
+        text = '''
+(fn identity (x) x)
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.functions[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify([types.TypeVariable('a')], qualified('(Fn a a)'))
+        self.assertEqual(expected, scheme)
+
+    def test_infer_implicit_function_with_predicates(self):
+        text = '''
+(fn fib (n)
+  (if (< n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.functions[0]
+        scheme = f.t.apply(inf.substitution)
+
+        expected = types.Scheme.quantify(
+            [types.TypeVariable('a')],
+            qualified('(=> ((Num a) (Ord a)) (Fn a a))')
+        )
+        self.assertEqual(expected, scheme)
 
     def empty_program(self):
         return parser.parse('')

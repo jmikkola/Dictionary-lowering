@@ -22,7 +22,7 @@ class TypeVariable:
 
 
 class Type:
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         raise NotImplementedError
 
     def apply(self, substitution):
@@ -46,7 +46,7 @@ class TVariable(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         return set([self.type_variable])
 
     @classmethod
@@ -79,7 +79,7 @@ class TGeneric(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         return set()
 
     def apply(self, substitution):
@@ -105,7 +105,7 @@ class TConstructor(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         return set()
 
     def apply(self, substitution):
@@ -136,7 +136,7 @@ class TApplication(Type):
         lisp += [a.to_lisp() for a in self.args]
         return lisp
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         ftvs = self.t.free_type_vars()
         for a in self.args:
             ftvs |= a.free_type_vars()
@@ -169,6 +169,7 @@ class TClass:
 class Predicate:
     def __init__(self, tclass: TClass, t: Type):
         assert(isinstance(tclass, TClass))
+        assert(isinstance(t, Type))
         self.tclass = tclass
         self.t = t
 
@@ -195,6 +196,7 @@ class Qualified:
     # This version of ubuntu is too old to get python 3.9+, but the types should be
     # def __init__(self, predicates: list[Predicate], t: Type | Predicate):
     def __init__(self, predicates, t):
+        assert(isinstance(t, Type) or isinstance(t, Predicate))
         self.predicates = predicates
         self.t = t
 
@@ -209,7 +211,11 @@ class Qualified:
         return f'Qualified({repr(self.predicates)}, {repr(self.t)})'
 
     def __eq__(self, o):
-        return isinstance(o, Qualified) and o.predicates == self.predicates and o.t == self.t
+        return (
+            isinstance(o, Qualified) and
+            o.predicates == self.predicates and
+            o.t == self.t
+        )
 
     def to_lisp(self):
         predicates = [p.to_lisp() for p in self.predicates]
@@ -224,7 +230,7 @@ class Qualified:
     def unqualify(self):
         return self.t
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         ftvs = self.t.free_type_vars()
         for p in self.predicates:
             ftvs |= p.t.free_type_vars()
@@ -234,6 +240,7 @@ class Qualified:
 class Scheme:
     def __init__(self, n_vars: int, qualified: Qualified):
         self.n_vars = n_vars
+        assert(isinstance(qualified, Qualified))
         self.qualified = qualified
 
     def __str__(self):
@@ -249,7 +256,7 @@ class Scheme:
             o.qualified == self.qualified
         )
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         return self.qualified.free_type_vars()
 
     def apply(self, substitution):
@@ -262,10 +269,12 @@ class Scheme:
 
     @classmethod
     def to_scheme(cls, t: Type):
+        assert(isinstance(t, Type))
         return Scheme(0, Qualified([], t))
 
     @classmethod
     def quantify(cls, type_vars, qt: Qualified):
+        assert(isinstance(qt, Qualified))
         free_vars = qt.free_type_vars()
 
         sub = {}
