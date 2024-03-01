@@ -828,12 +828,6 @@ class Inference:
             types.Qualified([], t)
         )
 
-    def generalize(self, t: types.Type) -> types.Scheme:
-        return types.Scheme.quantify(
-            t.free_type_vars(),
-            types.Qualified([], t)
-        )
-
     def unify_types(self, t1: types.Type, t2: types.Type):
         sub = types.most_general_unifier(
             t1.apply(self.substitution),
