@@ -775,6 +775,60 @@ class InferenceTest(unittest.TestCase):
 
         self.assertEqual(expected_lisp, function.to_lisp())
 
+    def test_applies_defaulting(self):
+        text = '''
+(fn main ()
+  (print (+ 1 2)))
+'''
+        # 1 and 2 are ambiguously typed (it could be any Num type)
+        # so defaulting should pick a concrete type for it
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_text = '''
+(fn main ()
+  (=> () (Fn Void))
+  (:: ((:: print (Fn Int Void))
+       (:: ((:: + (Fn Int Int Int))
+            (:: 1 Int)
+            (:: 2 Int))
+           Int))
+      Void))
+'''
+        expected_lisp = parser._parse_one_list(expected_text)
+        self.assertEqual(expected_lisp, function.to_lisp())
+
+    def test_defaulting_predicates_from_user_defined_function(self):
+        text = '''
+(fn main ()
+  (Fn Void)
+  (print (add1 2)))
+
+(fn add1 (n)
+  (+ 1 n))
+'''
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+        # from interpreter import syntax
+        # print(syntax.render_lisp(function.to_lisp()))
+
+        expected_text = '''
+(fn main ()
+  (=> () (Fn Void))
+  (:: ((:: print (Fn Int Void))
+       (:: ((:: add1 (Fn Int Int))
+            (:: 2 Int))
+           Int))
+      Void))
+'''
+        expected_lisp = parser._parse_one_list(expected_text)
+
+        self.assertEqual(expected_lisp, function.to_lisp())
+
 
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified

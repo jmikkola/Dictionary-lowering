@@ -275,7 +275,6 @@ class Inference:
         predicates, inferred_type = self.infer_function(assumptions, function, expressions)
         self.unify_types(inferred_type, function_type.t)
 
-        self.apply_sub_to_expressions(expressions)
 
         function_type = function_type.apply(self.substitution)
 
@@ -300,11 +299,14 @@ class Inference:
         ]
 
         deferred, retained = self.split(binding_tvars, function_tvars, new_predicates)
-
         if retained:
             raise types.TypeError(f'The signature for {function.name} is missing predicates {retained}')
 
-        function.t = function_type
+        # Apply the substitution again because it may have been updated by
+        # applying default types in the call to .split()
+        function.t = function_type.apply(self.substitution)
+        self.apply_sub_to_expressions(expressions)
+
         return deferred
 
     def infer_function(self, assumptions, function, expressions):
@@ -651,6 +653,13 @@ class Inference:
             candidate_types = self.candidates(a)
             if len(candidate_types) == 0:
                 raise types.TypeError(f'No default type for {a.type_variable}')
+
+            # Update the substitution to record what the type was defaulted to
+            self.unify_types(
+                types.TVariable(a.type_variable),
+                candidate_types[0]
+            )
+            # Record the fact that those predicates were handled
             results.extend(a.predicates)
 
         return results
