@@ -12,22 +12,34 @@ def main(args):
         text = inf.read()
 
     parse_result = parser.parse(text)
+
+    if '--dump-parsed' in args:
+        dump_program(parse_result)
+        return
+
     check_result = check.check(parse_result)
     inference_result = inference.infer_types(check_result)
+
+    if '--dump-inferred' in args:
+        dump_program(inference_result)
+        return
+
     lowering_result = lowering.lower(inference_result)
 
-    if '--render' in args:
-        first = True
-        for lisp in lowering_result.to_lisp():
-            if not first:
-                print()
-            first = False
-            print(syntax.render_lisp(lisp))
+    if '--dump-lowered' in args:
+        dump_program(lowering_result)
+        return
 
-    else:
-        intp = treewalker.Interpreter()
-        intp.load_program(lowering_result)
-        intp.eval_main()
+    treewalker.interpret(lowering_result)
+
+
+def dump_program(program):
+    first = True
+    for lisp in program.to_lisp():
+        if not first:
+            print()
+            first = False
+        print(syntax.render_lisp(lisp))
 
 
 if __name__ == '__main__':

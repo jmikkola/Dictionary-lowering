@@ -19,7 +19,6 @@ This package assumes a few things about the input code:
 """
 
 from interpreter import builtin
-from interpreter import types
 
 from interpreter.syntax import (
     DFunction, InstanceDef, StructDef,
@@ -366,7 +365,6 @@ class LoweringInput:
         '''
 
         qualified = declaration.t
-
         try:
             # Find out how the function's type was instantiated here
             substitution = match(qualified.t, expression.get_type())

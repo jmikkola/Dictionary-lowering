@@ -11,6 +11,12 @@ from interpreter import types
 from interpreter.program import Program
 
 
+def interpret(program: Program):
+    intp = Interpreter()
+    intp.load_program(program)
+    intp.eval_main()
+
+
 class InterpreterError(RuntimeError):
     pass
 
