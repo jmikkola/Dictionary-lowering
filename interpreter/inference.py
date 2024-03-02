@@ -159,9 +159,7 @@ class Inference:
         defauling_substitution = self.apply_defaults(retained_predicates)
         self.substitution = self.substitution.compose(defauling_substitution)
 
-        # Now that the final types are known, go back and update the type information on the functions
-        typed_functions = self.apply_types_to_functions(explicit_typed, implicit_typed_groups)
-        typed_instances = self.apply_types_to_instances(instances)
+        typed_functions = explicit_typed + [f for group in implicit_typed_groups for f in group]
 
         # Return the program with types inferred
         return Program(
@@ -169,7 +167,7 @@ class Inference:
             functions=typed_functions,
             structs=self.program.structs,
             classes=self.program.classes,
-            instances=typed_instances,
+            instances=instances,
         )
 
     def get_assumptions_for_functions(self, explicit_typed):
@@ -216,12 +214,16 @@ class Inference:
         })
 
         predicates = []
+        all_expressions = []
 
         for function in functions:
             assert(isinstance(function, syntax.DFunction))
-            preds, t = self.infer_function(assumptions, function)
+            expressions = []
+            preds, t = self.infer_function(assumptions, function, expressions)
             self.unify_types(t, tvars[function.name])
+
             predicates.extend(preds)
+            all_expressions.extend(expressions)
 
         predicates = self.substitution.apply_to_list(predicates)
         function_types = {
@@ -253,6 +255,22 @@ class Inference:
         for function in functions:
             function.t = function_schemes[function.name]
 
+        # Compute a substitution that will apply the _generic_ types to the
+        # types in the expression.
+        # E.g. make the x in (fn id (x) x) have the generic type t$0, to line
+        # up with the t$0 in the function's type scheme.
+        expression_substitution = self.substitution
+        for qt in function_types.values():
+            scheme_substitution = types.Scheme.quantifying_substitution(
+                binding_tvars,
+                types.Qualified(retained, t)
+            )
+            # This relies on the fact that composing substitutions makes a copy instead
+            # of changing the original
+            expression_substitution = expression_substitution.compose(scheme_substitution)
+
+        self.apply_sub_to_expressions(expression_substitution, all_expressions)
+
         return deferred, function_schemes
 
     def infer_explicit(self, assumptions, function):
@@ -264,8 +282,13 @@ class Inference:
         scheme = assumptions.get_scheme(function.name)
         function_type = self.instantiate(scheme)
 
-        predicates, inferred_type = self.infer_function(assumptions, function)
+        # Inferring the body of the function adds the expressions it sees to this list
+        expressions = []
+
+        predicates, inferred_type = self.infer_function(assumptions, function, expressions)
         self.unify_types(inferred_type, function_type.t)
+
+        self.apply_sub_to_expressions(self.substitution, expressions)
 
         function_type = function_type.apply(self.substitution)
 
@@ -297,7 +320,7 @@ class Inference:
         function.t = updated_scheme
         return deferred
 
-    def infer_function(self, assumptions, function):
+    def infer_function(self, assumptions, function, expressions):
         arg_tvars = {
             arg: self.next_type_var()
             for arg in function.arg_names
@@ -307,7 +330,7 @@ class Inference:
             for (arg, tvar) in arg_tvars.items()
         })
 
-        predicates, body_type = self.infer_expression(function_assumptions, function.body)
+        predicates, body_type = self.infer_expression(function_assumptions, function.body, expressions)
         function_type = types.make_function_type(
             [arg_tvars[arg] for arg in function.arg_names],
             body_type
@@ -351,6 +374,13 @@ class Inference:
 
         return instances
 
+    def apply_sub_to_expressions(self, substitution, expressions):
+        ''' Modifies the expressions in-place, applying the given substitution to their types '''
+        for expr in expressions:
+            assert(isinstance(expr, syntax.Expression))
+            assert(expr.t is not None)
+            expr.t = expr.t.apply(substitution)
+
     def infer_literal(self, lit: syntax.Literal):
         # Integer literals can be used as any numeric type
         if isinstance(lit, syntax.LInt):
@@ -360,16 +390,17 @@ class Inference:
         # Other types are simpler
         return ([], lit.get_type())
 
-    def infer_expression(self, assumptions, expr: syntax.Expression):
+    def infer_expression(self, assumptions, expr: syntax.Expression, expressions):
         # TODO: handle user-defined expression types
 
-        predicates, t = self._infer_expression(assumptions, expr)
+        predicates, t = self._infer_expression(assumptions, expr, expressions)
 
         expr.t = t
+        expressions.append(expr)
 
         return (predicates, t)
 
-    def _infer_expression(self, assumptions, expr: syntax.Expression):
+    def _infer_expression(self, assumptions, expr: syntax.Expression, expressions):
         assert(isinstance(assumptions, Assumptions))
 
         if isinstance(expr, syntax.EVariable):
@@ -381,11 +412,11 @@ class Inference:
             return self.infer_literal(expr.literal)
 
         elif isinstance(expr, syntax.ECall):
-            predicates, fn_type = self.infer_expression(assumptions, expr.f_expr)
+            predicates, fn_type = self.infer_expression(assumptions, expr.f_expr, expressions)
 
             arg_types = []  # type: typing.List[types.Type]
             for arg in expr.arg_exprs:
-                ps, arg_t = self.infer_expression(assumptions, arg)
+                ps, arg_t = self.infer_expression(assumptions, arg, expressions)
                 predicates.extend(ps)
                 arg_types.append(arg_t)
 
@@ -411,7 +442,7 @@ class Inference:
             predicates = []
             arg_types = []
             for arg in expr.arg_exprs:
-                ps, arg_t = self.infer_expression(assumptions, arg)
+                ps, arg_t = self.infer_expression(assumptions, arg, expressions)
                 predicates.extend(ps)
                 arg_types.append(arg_t)
 
@@ -442,7 +473,7 @@ class Inference:
             raise RuntimeError('Partial application should not exist until lowering')
 
         elif isinstance(expr, syntax.EAccess):
-            predicates, inner_t = self.infer_expression(assumptions, expr.lhs)
+            predicates, inner_t = self.infer_expression(assumptions, expr.lhs, expressions)
             inner_t = inner_t.apply(self.substitution)
 
             # Require that type inference have already figured out the type
@@ -508,7 +539,7 @@ class Inference:
             binding_types = {}
 
             for binding in expr.bindings:
-                ps, binding_t = self.infer_expression(temp_assumptions, binding.value)
+                ps, binding_t = self.infer_expression(temp_assumptions, binding.value, expressions)
                 predicates.extend(ps)
                 binding_types[binding.name] = binding_t
                 self.unify_types(binding_t, binding_tvars[binding.name])
@@ -544,7 +575,7 @@ class Inference:
                 for (name, t) in binding_types.items()
             })
 
-            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner)
+            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner, expressions)
             predicates.extend(ps)
 
             return (predicates, inner_t)
@@ -552,14 +583,14 @@ class Inference:
         elif isinstance(expr, syntax.EIf):
             predicates = []
 
-            ps, test_t = self.infer_expression(assumptions, expr.test)
+            ps, test_t = self.infer_expression(assumptions, expr.test, expressions)
             self.unify_types(test_t, types.TConstructor('Bool'))
             predicates.extend(ps)
 
-            ps, if_t = self.infer_expression(assumptions, expr.if_case)
+            ps, if_t = self.infer_expression(assumptions, expr.if_case, expressions)
             predicates.extend(ps)
 
-            ps, else_t = self.infer_expression(assumptions, expr.else_case)
+            ps, else_t = self.infer_expression(assumptions, expr.else_case, expressions)
             predicates.extend(ps)
 
             result_t = self.next_type_var()
@@ -577,7 +608,7 @@ class Inference:
             }
             body_assumptions = assumptions.make_child(arg_schemes)
 
-            predicates, body_t = self.infer_expression(body_assumptions, expr.body)
+            predicates, body_t = self.infer_expression(body_assumptions, expr.body, expressions)
 
             # This type only gets generalized if it is bound to a name
             # in a let binding.
@@ -586,14 +617,6 @@ class Inference:
 
         else:
             raise RuntimeError(f'Unhandled type of expression: {expr}')
-
-    def apply_types_to_functions(self, explicit_typed, implicit_typed_groups):
-        # TODO: apply the substitution to the types of the functions
-        return explicit_typed + [f for group in implicit_typed_groups for f in group]
-
-    def apply_types_to_instances(self, instances):
-        # TODO: apply the substitution to the types of the instances
-        return instances
 
     def split(self, context_tvars, binding_tvars, predicates):
         predicates = self.reduce(predicates)
@@ -829,6 +852,7 @@ class Inference:
         )
 
     def unify_types(self, t1: types.Type, t2: types.Type):
+        ''' Updates the substitution to make the types equal '''
         sub = types.most_general_unifier(
             t1.apply(self.substitution),
             t2.apply(self.substitution)

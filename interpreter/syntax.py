@@ -108,6 +108,7 @@ class Expression:
 class ELiteral(Expression):
     def __init__(self, literal: Literal):
         self.literal = literal
+        self.t = None
 
     def __str__(self):
         return str(self.literal)
@@ -119,9 +120,16 @@ class ELiteral(Expression):
         return isinstance(o, ELiteral) and o.literal == self.literal
 
     def to_lisp(self):
-        return self.literal.to_lisp()
+        lisp = self.literal.to_lisp()
+        if self.t is not None:
+            lisp = add_type(lisp, self.t)
+        return lisp
 
     def get_type(self) -> Type:
+        # Allows specifying a concrete type (Float or Int) for literals like `123`
+        if self.t is not None:
+            return self.t
+
         return self.literal.get_type()
 
 

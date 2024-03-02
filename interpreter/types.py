@@ -256,6 +256,9 @@ class Scheme:
             o.qualified == self.qualified
         )
 
+    def to_lisp(self):
+        return ['*generic*', str(self.n_vars), self.qualified.to_lisp()]
+
     def free_type_vars(self) -> set:
         return self.qualified.free_type_vars()
 
@@ -274,6 +277,16 @@ class Scheme:
 
     @classmethod
     def quantify(cls, type_vars, qt: Qualified):
+        n_vars, substitution = cls._quantifying_substitution(type_vars, qt)
+        return Scheme(n_vars, qt.apply(substitution))
+
+    @classmethod
+    def quantifying_substitution(cls, type_vars, qt: Qualified):
+        _, substitution = cls._quantifying_substitution(type_vars, qt)
+        return substitution
+
+    @classmethod
+    def _quantifying_substitution(cls, type_vars, qt: Qualified):
         assert(isinstance(qt, Qualified))
         free_vars = qt.free_type_vars()
 
@@ -284,7 +297,7 @@ class Scheme:
                 sub[var] = TGeneric(i)
                 i += 1
 
-        return Scheme(i, qt.apply(Substitution(sub)))
+        return i, Substitution(sub)
 
 class Substitution:
     # dict[TyVar, Type]

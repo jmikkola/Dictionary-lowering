@@ -313,20 +313,20 @@ class InferenceTest(unittest.TestCase):
         inf = inference.Inference(self.empty_program())
         assumptions = inference.Assumptions()
 
-        predicates, t = inf.infer_expression(assumptions, expression('"abc"'))
+        predicates, t = inf.infer_expression(assumptions, expression('"abc"'), [])
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('String'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('123.45'))
+        predicates, t = inf.infer_expression(assumptions, expression('123.45'), [])
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('Float'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('123'))
+        predicates, t = inf.infer_expression(assumptions, expression('123'), [])
         self.assertEqual([predicate('(Num t1)')], predicates)
         self.assertEqual(types.TVariable.from_varname('t1'), t)
 
         # Infering that again gives new type variables
-        predicates, t = inf.infer_expression(assumptions, expression('123'))
+        predicates, t = inf.infer_expression(assumptions, expression('123'), [])
         self.assertEqual([predicate('(Num t2)')], predicates)
         self.assertEqual(types.TVariable.from_varname('t2'), t)
 
@@ -340,16 +340,16 @@ class InferenceTest(unittest.TestCase):
             ),
         })
 
-        predicates, t = inf.infer_expression(assumptions, expression('x'))
+        predicates, t = inf.infer_expression(assumptions, expression('x'), [])
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('Int'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('y'))
+        predicates, t = inf.infer_expression(assumptions, expression('y'), [])
         self.assertEqual([predicate('(Eq t1)')], predicates)
         self.assertEqual(type_('(Fn t1 t1)'), t)
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression('z'))
+            inf.infer_expression(assumptions, expression('z'), [])
 
     def test_infer_call(self):
         inf = inference.Inference(self.empty_program())
@@ -362,7 +362,7 @@ class InferenceTest(unittest.TestCase):
 
         expr = expression('(f "abc")')
 
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([predicate('(Eq t1)')], predicates)
         predicates_subbed = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Eq String)')], predicates_subbed)
@@ -383,16 +383,16 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression("(new Point 1 2)")
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([predicate('(Num t1)'), predicate('(Num t2)')], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Point'), t)
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression("(new Point 1 \"a\")"))
+            inf.infer_expression(assumptions, expression("(new Point 1 \"a\")"), [])
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression("(new Point 1 2 3)"))
+            inf.infer_expression(assumptions, expression("(new Point 1 2 3)"), [])
 
     def test_infer_generic_struct(self):
         text = '''
@@ -404,13 +404,13 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression('(new Pair "abc" false)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Pair String Bool)'), t)
 
         expr = expression('(new Pair (new Pair "abc" 123.0) false)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Pair (Pair String Float) Bool)'), t)
@@ -425,7 +425,7 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression('(. (new Point 1 2) x)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Num Int)'), predicate('(Num Int)')], predicates)
         t = t.apply(inf.substitution)
@@ -433,7 +433,7 @@ class InferenceTest(unittest.TestCase):
 
         # Nested access works
         expr = expression('(. (. (new Pair (new Pair "abc" 123.0) false) first) second)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
@@ -441,11 +441,11 @@ class InferenceTest(unittest.TestCase):
         with self.assertRaises(types.TypeError):
             # z is not a field of Point
             expr = expression('(. (new Point 1 2) z)')
-            inf.infer_expression(assumptions, expr)
+            inf.infer_expression(assumptions, expr, [])
 
         with self.assertRaises(types.TypeError):
             expr = expression('(. "foo" x)')
-            inf.infer_expression(assumptions, expr)
+            inf.infer_expression(assumptions, expr, [])
 
     def test_infer_let(self):
         inf = inference.Inference(self.empty_program())
@@ -466,14 +466,14 @@ class InferenceTest(unittest.TestCase):
 
         # A simple let expression
         expr = expression('(let ((x "abc") (y 123.0)) x)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('String'), t)
 
         # A let expression where one value depends on the other
         expr = expression('(let ((x 123.0) (y (* 2.0 x))) y)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Num Float)')], predicates)
         t = t.apply(inf.substitution)
@@ -482,7 +482,7 @@ class InferenceTest(unittest.TestCase):
         # Can surface predicates for variables referenced in the bindings
         expr = expression('(let ((x (show var))) x)')
         inf = inference.Inference(self.empty_program())
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Show t2)')], predicates)
         t = t.apply(inf.substitution)
@@ -491,7 +491,7 @@ class InferenceTest(unittest.TestCase):
         # A variable can be instantiated at multiple different types
         expr = expression('(let ((id (\ (x) x))) ((id id) false))')
         inf = inference.Inference(self.empty_program())
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Bool'), t)
@@ -513,14 +513,14 @@ class InferenceTest(unittest.TestCase):
 
         # If expression with matching types
         expr = expression('(if true 1.0 2.0)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
 
         # The test is forced to have the type Bool
         expr = expression('(if var var var)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Bool'), t)
@@ -528,12 +528,12 @@ class InferenceTest(unittest.TestCase):
         # Fails if the branches have different types
         expr = expression('(if true "x" 2.0)')
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expr)
+            inf.infer_expression(assumptions, expr, [])
 
         # Fails if the test isn't a boolean
         expr = expression('(if "x" 2 3)')
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expr)
+            inf.infer_expression(assumptions, expr, [])
 
     def test_infer_lambda(self):
         inf = inference.Inference(self.empty_program())
@@ -541,13 +541,13 @@ class InferenceTest(unittest.TestCase):
 
         # Very simple, no argument lambda
         expr = expression('(\ () true)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         self.assertEqual(type_('(Fn Bool)'), t)
 
         # A lambda that takes an argument
         expr = expression('(\ (x) x)')
-        predicates, t = inf.infer_expression(assumptions, expr)
+        predicates, t = inf.infer_expression(assumptions, expr, [])
         self.assertEqual([], predicates)
         self.assertEqual(type_('(Fn t1 t1)'), t)
 
@@ -569,7 +569,7 @@ class InferenceTest(unittest.TestCase):
 
         # Make use of those assumptions:
         expr = expression('(\ (x) (next x))')
-        predicates, t = inf.infer_expression(inference.Assumptions(assumptions), expr)
+        predicates, t = inf.infer_expression(inference.Assumptions(assumptions), expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Next t2)')], predicates)
         t = t.apply(inf.substitution)
@@ -698,7 +698,7 @@ class InferenceTest(unittest.TestCase):
   (:: to_string (Fn a String)))
 
 (instance (ToString Point)
-  (fn to_string (p) "TODO"))
+  (fn to_string (p) "some string"))
 '''
         inf = inference.Inference(parser.parse(text))
 
@@ -728,6 +728,66 @@ class InferenceTest(unittest.TestCase):
 
         with self.assertRaises(types.TypeError):
             inf.infer()
+
+    def test_sets_types_of_expressions_in_explititly_typed_fn(self):
+        text = '''
+(fn fib (n)
+  (Fn Int Int)
+  (if (< n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+'''
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_text = '''
+(fn fib (n)
+  (*generic* 0 (=> () (Fn Int Int)))
+  (:: (if (:: ((:: < (Fn Int Int Bool))
+               (:: n Int)
+               (:: 2 Int))
+              Bool)
+          (:: n Int)
+          (:: ((:: + (Fn Int Int Int))
+               (:: ((:: fib (Fn Int Int))
+                    (:: ((:: - (Fn Int Int Int))
+                         (:: n Int)
+                         (:: 1 Int))
+                        Int))
+                   Int)
+               (:: ((:: fib (Fn Int Int))
+                    (:: ((:: - (Fn Int Int Int))
+                         (:: n Int)
+                         (:: 2 Int))
+                        Int))
+                   Int))
+              Int))
+      Int))
+'''
+        expected_lisp = parser._parse_one_list(expected_text)
+
+        self.assertEqual(expected_lisp, function.to_lisp())
+
+    def test_sets_types_of_expressions_in_implicitly_typed_fn(self):
+        text = '''
+(fn identity (x) x)
+'''
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_text = '''
+(fn identity (x)
+  (*generic* 1 (=> () (Fn t$0 t$0)))
+  (:: x t$0))
+'''
+        expected_lisp = parser._parse_one_list(expected_text)
+
+        self.assertEqual(expected_lisp, function.to_lisp())
+
 
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
