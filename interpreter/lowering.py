@@ -19,6 +19,7 @@ This package assumes a few things about the input code:
 """
 
 from interpreter import builtin
+from interpreter import types
 
 from interpreter.syntax import (
     DFunction, InstanceDef, StructDef,
@@ -128,7 +129,11 @@ class LoweringInput:
     def _lower_function(self, context, declaration):
         ''' Converts the function's predicates to dictionary arguments '''
 
+        # TODO: fix this to expect a type scheme
         qualified = declaration.t
+        # temp hack
+        if isinstance(qualified, types.Scheme):
+            qualified = qualified.qualified
 
         decl_type = self._predicates_to_arg_types(qualified)
 
@@ -365,6 +370,10 @@ class LoweringInput:
         '''
 
         qualified = declaration.t
+        # TODO: probably need to instantiate the scheme
+        if isinstance(qualified, types.Scheme):
+            qualified = qualified.qualified
+
         try:
             # Find out how the function's type was instantiated here
             substitution = match(qualified.t, expression.get_type())

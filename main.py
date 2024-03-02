@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
+
 from interpreter import check
+from interpreter import inference
 from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
@@ -10,7 +13,8 @@ def main(args):
 
     parse_result = parser.parse(text)
     check_result = check.check(parse_result)
-    lowering_result = lowering.lower(check_result)
+    inference_result = inference.infer_types(check_result)
+    lowering_result = lowering.lower(inference_result)
 
     if '--render' in args:
         first = True
