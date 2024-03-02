@@ -251,25 +251,12 @@ class Inference:
             for (name, t) in function_types.items()
         }
 
-        # Save the resulting schemes back to the functions
+        # Save the resulting type back to the functions
         for function in functions:
-            function.t = function_schemes[function.name]
+            t = function_types[function.name]
+            function.t = types.Qualified(retained, t)
 
-        # Compute a substitution that will apply the _generic_ types to the
-        # types in the expression.
-        # E.g. make the x in (fn id (x) x) have the generic type t$0, to line
-        # up with the t$0 in the function's type scheme.
-        expression_substitution = self.substitution
-        for qt in function_types.values():
-            scheme_substitution = types.Scheme.quantifying_substitution(
-                binding_tvars,
-                types.Qualified(retained, t)
-            )
-            # This relies on the fact that composing substitutions makes a copy instead
-            # of changing the original
-            expression_substitution = expression_substitution.compose(scheme_substitution)
-
-        self.apply_sub_to_expressions(expression_substitution, all_expressions)
+        self.apply_sub_to_expressions(all_expressions)
 
         return deferred, function_schemes
 
@@ -288,7 +275,7 @@ class Inference:
         predicates, inferred_type = self.infer_function(assumptions, function, expressions)
         self.unify_types(inferred_type, function_type.t)
 
-        self.apply_sub_to_expressions(self.substitution, expressions)
+        self.apply_sub_to_expressions(expressions)
 
         function_type = function_type.apply(self.substitution)
 
@@ -317,7 +304,7 @@ class Inference:
         if retained:
             raise types.TypeError(f'The signature for {function.name} is missing predicates {retained}')
 
-        function.t = updated_scheme
+        function.t = function_type
         return deferred
 
     def infer_function(self, assumptions, function, expressions):
@@ -374,12 +361,12 @@ class Inference:
 
         return instances
 
-    def apply_sub_to_expressions(self, substitution, expressions):
+    def apply_sub_to_expressions(self, expressions):
         ''' Modifies the expressions in-place, applying the given substitution to their types '''
         for expr in expressions:
             assert(isinstance(expr, syntax.Expression))
             assert(expr.t is not None)
-            expr.t = expr.t.apply(substitution)
+            expr.t = expr.t.apply(self.substitution)
 
     def infer_literal(self, lit: syntax.Literal):
         # Integer literals can be used as any numeric type

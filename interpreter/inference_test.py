@@ -583,10 +583,10 @@ class InferenceTest(unittest.TestCase):
 
         program = inf.infer()
         f = program.functions[0]
-        scheme = f.t.apply(inf.substitution)
+        qt = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify([types.TypeVariable('a')], qualified('(Fn a a)'))
-        self.assertEqual(expected, scheme)
+        expected = qualified('(Fn t2 t2)')
+        self.assertEqual(expected, qt)
 
     def test_infer_implicit_function_with_predicates(self):
         text = '''
@@ -599,13 +599,10 @@ class InferenceTest(unittest.TestCase):
 
         program = inf.infer()
         f = program.functions[0]
-        scheme = f.t.apply(inf.substitution)
+        qt = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify(
-            [types.TypeVariable('a')],
-            qualified('(=> ((Num a) (Ord a)) (Fn a a))')
-        )
-        self.assertEqual(expected, scheme)
+        expected = qualified('(=> ((Num t6) (Ord t6)) (Fn t6 t6))')
+        self.assertEqual(expected, qt)
 
     def test_resolvable_ambiguity(self):
         text = '''
@@ -617,9 +614,7 @@ class InferenceTest(unittest.TestCase):
         f = program.functions[0]
         scheme = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify(
-            [], qualified('(Fn String)')
-        )
+        expected = qualified('(Fn String)')
         self.assertEqual(expected, scheme)
 
     def test_unresolvable_ambiguity(self):
@@ -642,9 +637,7 @@ class InferenceTest(unittest.TestCase):
         f = program.functions[0]
         scheme = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify(
-            [], qualified('(Fn Int Int)')
-        )
+        expected = qualified('(Fn Int Int)')
         self.assertEqual(expected, scheme)
 
     def test_explicit_typed_function_with_predicates(self):
@@ -657,13 +650,10 @@ class InferenceTest(unittest.TestCase):
 
         program = inf.infer()
         f = program.functions[0]
-        scheme = f.t.apply(inf.substitution)
+        qt = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify(
-            [types.TypeVariable('a')],
-            qualified('(=> ((Ord a)) (Fn a a Bool))')
-        )
-        self.assertEqual(expected, scheme)
+        expected = qualified('(=> ((Ord t1)) (Fn t1 t1 Bool))')
+        self.assertEqual(expected, qt)
 
     def test_explicit_typed_function_too_general_type_sig(self):
         text = '''
@@ -704,13 +694,10 @@ class InferenceTest(unittest.TestCase):
 
         program = inf.infer()
         f = program.instances[0].method_impls[0]
-        scheme = f.t.apply(inf.substitution)
+        qt = f.t.apply(inf.substitution)
 
-        expected = types.Scheme.quantify(
-            [types.TypeVariable('a')],
-            qualified('(Fn a String)')
-        )
-        self.assertEqual(expected, scheme)
+        expected = qualified('(Fn t1 String)')
+        self.assertEqual(expected, qt)
 
     def test_checks_types_of_instance_methods_with_incorrect_type(self):
         text = '''
@@ -744,7 +731,7 @@ class InferenceTest(unittest.TestCase):
 
         expected_text = '''
 (fn fib (n)
-  (*generic* 0 (=> () (Fn Int Int)))
+  (=> () (Fn Int Int))
   (:: (if (:: ((:: < (Fn Int Int Bool))
                (:: n Int)
                (:: 2 Int))
@@ -781,8 +768,8 @@ class InferenceTest(unittest.TestCase):
 
         expected_text = '''
 (fn identity (x)
-  (*generic* 1 (=> () (Fn t$0 t$0)))
-  (:: x t$0))
+  (=> () (Fn t2 t2))
+  (:: x t2))
 '''
         expected_lisp = parser._parse_one_list(expected_text)
 
