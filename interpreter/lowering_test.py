@@ -82,9 +82,9 @@ class TestLowering(unittest.TestCase):
 
     def test_lowering_struct_access(self):
         input_text = '''
-          (fn show_x (pair)
-             (=> ((Show t)) (Fn (Pair t) String))
-             (:: ((:: show (Fn t String))
+          (fn show__x (pair)
+             (=> ((Show_ t)) (Fn (Pair t) String))
+             (:: ((:: show_ (Fn t String))
                   (:: (. (:: pair (Pair t)) x) t))
                  String))
 
@@ -92,20 +92,20 @@ class TestLowering(unittest.TestCase):
             (:: x a)
             (:: y a))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 '''
 
         output_text = '''
-          (fn show_x (dict_Show_t pair)
-            (Fn (ShowMethods t) (Pair t) String)
-            (:: ((:: (. (:: dict_Show_t (ShowMethods t)) show)
+          (fn show__x (dict_Show__t pair)
+            (Fn (Show_Methods t) (Pair t) String)
+            (:: ((:: (. (:: dict_Show__t (Show_Methods t)) show_)
                      (Fn t String))
                  (:: (. (:: pair (Pair t)) x) t))
                 String))
 
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (struct (Show_Methods s)
+            (:: show_ (Fn s String)))
 
           (struct (Pair a)
             (:: x a)
@@ -116,31 +116,31 @@ class TestLowering(unittest.TestCase):
 
     def test_lowering_if_expressions(self):
         input_text = '''
-          (fn show_either (first? first second)
-              (=> ((Show a)) (Fn Bool a a String))
+          (fn show__either (first? first second)
+              (=> ((Show_ a)) (Fn Bool a a String))
               (:: (if (:: first? Bool)
-                    (:: ((:: show (Fn a String)) (:: first a)) String)
-                    (:: ((:: show (Fn a String)) (:: second a)) String))
+                    (:: ((:: show_ (Fn a String)) (:: first a)) String)
+                    (:: ((:: show_ (Fn a String)) (:: second a)) String))
                   String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 '''
 
         output_text = '''
-          (fn show_either (dict_Show_a first? first second)
-            (Fn (ShowMethods a) Bool a a String)
+          (fn show__either (dict_Show__a first? first second)
+            (Fn (Show_Methods a) Bool a a String)
             (:: (if (:: first? Bool)
-                  (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                  (:: ((:: (. (:: dict_Show__a (Show_Methods a)) show_) (Fn a String))
                        (:: first a))
                       String)
-                  (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String))
+                  (:: ((:: (. (:: dict_Show__a (Show_Methods a)) show_) (Fn a String))
                        (:: second a))
                       String))
               String))
 
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (struct (Show_Methods s)
+            (:: show_ (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -149,19 +149,19 @@ class TestLowering(unittest.TestCase):
         input_text = '''
           (fn tenth-power (x)
              (Fn Int Int)
-             (let ((x2  (* x x))
-                   (x4 (* x2 x2))
-                   (x8 (* x4 x4)))
-                (* x8 x2)))
+             (let ((x2  (*:Int x x))
+                   (x4 (*:Int x2 x2))
+                   (x8 (*:Int x4 x4)))
+                (*:Int x8 x2)))
 '''
 
         output_text = '''
           (fn tenth-power (x)
              (Fn Int Int)
-             (let ((x2  (* x x))
-                   (x4 (* x2 x2))
-                   (x8 (* x4 x4)))
-                (* x8 x2)))
+             (let ((x2  (*:Int x x))
+                   (x4 (*:Int x2 x2))
+                   (x8 (*:Int x4 x4)))
+                (*:Int x8 x2)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -170,13 +170,13 @@ class TestLowering(unittest.TestCase):
         input_text = '''
           (fn make-adder (x)
             (Fn Int (Fn Int Int))
-            (\ (n) (+ x n)))
+            (\ (n) (+:Int x n)))
 '''
 
         output_text = '''
           (fn make-adder (x)
             (Fn Int (Fn Int Int))
-            (\ (n) (+ x n)))
+            (\ (n) (+:Int x n)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -207,22 +207,22 @@ class TestLowering(unittest.TestCase):
 
     def test_looks_up_dictionaries_from_arguments(self):
         # This depends on having the definition of the class to know that
-        # `show` comes from it.
+        # `show_` comes from it.
         input_text = '''
-          (fn show_a (a)
-              (=> ((Show t)) (Fn t String))
-           (:: ((:: show (Fn t String)) (:: a t)) String))
+          (fn show__a (a)
+              (=> ((Show_ t)) (Fn t String))
+           (:: ((:: show_ (Fn t String)) (:: a t)) String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 '''
 
         output_text = '''
-          (fn show_a (dict_Show_t a)
-            (Fn (ShowMethods t) t String)
-            (:: ((:: (. (:: dict_Show_t (ShowMethods t)) show) (Fn t String)) (:: a t)) String))
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (fn show__a (dict_Show__t a)
+            (Fn (Show_Methods t) t String)
+            (:: ((:: (. (:: dict_Show__t (Show_Methods t)) show_) (Fn t String)) (:: a t)) String))
+          (struct (Show_Methods s)
+            (:: show_ (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -234,38 +234,38 @@ class TestLowering(unittest.TestCase):
     def test_passes_class_predicates_to_another_method(self):
         input_text = '''
           (fn first-function (x)
-            (=> ((Show a)) (Fn a String))
+            (=> ((Show_ a)) (Fn a String))
             (:: ((:: concat (Fn String String String))
                  "> "
                  (:: ((:: second-function (Fn a String)) (:: x a)) String))
                 String))
 
           (fn second-function (x)
-            (=> ((Show a)) (Fn a String))
-            (:: ((:: show (Fn a String)) (:: x a)) String))
+            (=> ((Show_ a)) (Fn a String))
+            (:: ((:: show_ (Fn a String)) (:: x a)) String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 '''
 
         output_text = '''
-          (fn first-function (dict_Show_a x)
-            (Fn (ShowMethods a) a String)
+          (fn first-function (dict_Show__a x)
+            (Fn (Show_Methods a) a String)
             (:: ((:: concat (Fn String String String))
                  "> "
                  (:: ((:: second-function
-                          (Fn (ShowMethods a) a String))
-                      (:: dict_Show_a (ShowMethods a))
+                          (Fn (Show_Methods a) a String))
+                      (:: dict_Show__a (Show_Methods a))
                       (:: x a))
                      String))
                 String))
 
-          (fn second-function (dict_Show_a x)
-            (Fn (ShowMethods a) a String)
-            (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show) (Fn a String)) (:: x a)) String))
+          (fn second-function (dict_Show__a x)
+            (Fn (Show_Methods a) a String)
+            (:: ((:: (. (:: dict_Show__a (Show_Methods a)) show_) (Fn a String)) (:: x a)) String))
 
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (struct (Show_Methods s)
+            (:: show_ (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -278,43 +278,43 @@ class TestLowering(unittest.TestCase):
             (:: ((:: second-function (Fn Int String)) 123) String))
 
           (fn second-function (x)
-            (=> ((Show a)) (Fn a String))
-            (:: ((:: show (Fn a String)) (:: x a)) String))
+            (=> ((ToString a)) (Fn a String))
+            (:: ((:: toString (Fn a String)) (:: x a)) String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (ToString s)
+            (:: toString (Fn s String)))
 
-          (instance (Show Int)
-            (fn show (i) "_"))
+          (instance (ToString Int)
+            (fn toString (i) "_"))
 '''
 
         output_text = '''
-          (fn make__ShowMethods__Int ()
-            (Fn (ShowMethods Int))
-            (:: (new ShowMethods
+          (fn make__ToStringMethods__Int ()
+            (Fn (ToStringMethods Int))
+            (:: (new ToStringMethods
                   (:: (\ (i) "_")
                       (Fn Int String)))
-                (ShowMethods Int)))
+                (ToStringMethods Int)))
 
           (fn first-function ()
             (Fn String)
-            (:: ((:: second-function (Fn (ShowMethods Int) Int String))
-                 (:: ((:: make__ShowMethods__Int
-                          (Fn (ShowMethods Int))))
-                     (ShowMethods Int))
+            (:: ((:: second-function (Fn (ToStringMethods Int) Int String))
+                 (:: ((:: make__ToStringMethods__Int
+                          (Fn (ToStringMethods Int))))
+                     (ToStringMethods Int))
                  123)
                 String))
 
-          (fn second-function (dict_Show_a x)
-            (Fn (ShowMethods a) a String)
-            (:: ((:: (. (:: dict_Show_a (ShowMethods a))
-                        show)
+          (fn second-function (dict_ToString_a x)
+            (Fn (ToStringMethods a) a String)
+            (:: ((:: (. (:: dict_ToString_a (ToStringMethods a))
+                        toString)
                      (Fn a String))
                  (:: x a))
                 String))
 
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (struct (ToStringMethods s)
+            (:: toString (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -402,30 +402,30 @@ class TestLowering(unittest.TestCase):
 
     def test_lowering_class_use_for_concrete_type(self):
         input_text = '''
-          (fn show_an_int ()
+          (fn show__an_int ()
             (Fn String)
-            (:: ((:: show (Fn Int String)) 12345) String))
+            (:: ((:: show_ (Fn Int String)) 12345) String))
 
-          (class (Show a)
-            (:: show (Fn a String)))
+          (class (Show_ a)
+            (:: show_ (Fn a String)))
 
-          (instance (Show Int)
-            (fn show (i) "_"))
+          (instance (Show_ Int)
+            (fn show_ (i) "_"))
  '''
 
         output_text = '''
-(fn make__ShowMethods__Int ()
-  (Fn (ShowMethods Int))
-  (:: (new ShowMethods
+(fn make__Show_Methods__Int ()
+  (Fn (Show_Methods Int))
+  (:: (new Show_Methods
         (:: (\ (i) "_") (Fn Int String)))
-  (ShowMethods Int)))
+  (Show_Methods Int)))
 
-(fn show_an_int ()
+(fn show__an_int ()
   (Fn String)
-  (:: ((:: (. (:: ((:: make__ShowMethods__Int (Fn (ShowMethods Int)))) (ShowMethods Int)) show) (Fn Int String)) 12345) String))
+  (:: ((:: (. (:: ((:: make__Show_Methods__Int (Fn (Show_Methods Int)))) (Show_Methods Int)) show_) (Fn Int String)) 12345) String))
 
-(struct (ShowMethods a)
-  (:: show (Fn a String)))
+(struct (Show_Methods a)
+  (:: show_ (Fn a String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -435,13 +435,13 @@ class TestLowering(unittest.TestCase):
         input_text = '''
 (class (Foldable t)
   (:: foldl (Fn (Fn b a b) b (t a) b))
-  (:: elem (=> ((Eq a)) (Fn a (t a) Bool))))
+  (:: elem (=> ((Eq_ a)) (Fn a (t a) Bool))))
 
-(class (Eq a)
-  (:: == (Fn a a Bool)))
+(class (Eq_ a)
+  (:: ==_ (Fn a a Bool)))
 
 (fn pass_method_to_class (item list)
-  (=> ((Foldable f) (Eq x)) (Fn x (f x) Bool))
+  (=> ((Foldable f) (Eq_ x)) (Fn x (f x) Bool))
   (::
     ((:: elem (Fn x (f x) Bool))
      (:: item x)
@@ -450,21 +450,21 @@ class TestLowering(unittest.TestCase):
 '''
 
         output_text = '''
-(fn pass_method_to_class (dict_Foldable_f dict_Eq_x item list)
-  (Fn (FoldableMethods f) (EqMethods x) x (f x) Bool)
+(fn pass_method_to_class (dict_Foldable_f dict_Eq__x item list)
+  (Fn (FoldableMethods f) (Eq_Methods x) x (f x) Bool)
   (:: ((:: (. (:: dict_Foldable_f (FoldableMethods f)) elem)
-           (Fn (EqMethods x) x (f x) Bool))
-       (:: dict_Eq_x (EqMethods x))
+           (Fn (Eq_Methods x) x (f x) Bool))
+       (:: dict_Eq__x (Eq_Methods x))
        (:: item x)
        (:: list (f x)))
       Bool))
 
 (struct (FoldableMethods t)
   (:: foldl (Fn (Fn b a b) b (t a) b))
-  (:: elem (Fn (EqMethods a) a (t a) Bool)))
+  (:: elem (Fn (Eq_Methods a) a (t a) Bool)))
 
-(struct (EqMethods a)
-  (:: == (Fn a a Bool)))
+(struct (Eq_Methods a)
+  (:: ==_ (Fn a a Bool)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -700,30 +700,30 @@ class TestLowering(unittest.TestCase):
 
           (fn get_partially_applied_function ()
             (Fn (Fn Int String))
-            (:: show_thing (Fn Int String)))
+            (:: show__thing (Fn Int String)))
 
-          (fn show_thing (thing)
-            (=> ((Show a)) (Fn a String))
-            (:: ((:: show (Fn a String)) (:: thing a)) String))
+          (fn show__thing (thing)
+            (=> ((Show_ a)) (Fn a String))
+            (:: ((:: show_ (Fn a String)) (:: thing a)) String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 
-          (instance (Show Int)
-            (fn show (i)
+          (instance (Show_ Int)
+            (fn show_ (i)
               (:: ((:: str (Fn Int String)) (:: i Int)) String)))
 '''
 
         output_text = '''
-          (fn make__ShowMethods__Int ()
-            (Fn (ShowMethods Int))
-            (:: (new ShowMethods
+          (fn make__Show_Methods__Int ()
+            (Fn (Show_Methods Int))
+            (:: (new Show_Methods
                   (:: (\ (i)
                          (:: ((:: str (Fn Int String))
                               (:: i Int))
                              String))
                       (Fn Int String)))
-                (ShowMethods Int)))
+                (Show_Methods Int)))
 
           (fn use_partially_applied_function ()
             (Fn String)
@@ -736,21 +736,21 @@ class TestLowering(unittest.TestCase):
           (fn get_partially_applied_function ()
              (Fn (Fn Int String))
              (:: (*partial*
-                   (:: show_thing
-                       (Fn (ShowMethods Int) Int String))
-                   (:: ((:: make__ShowMethods__Int (Fn (ShowMethods Int))))
-                       (ShowMethods Int)))
+                   (:: show__thing
+                       (Fn (Show_Methods Int) Int String))
+                   (:: ((:: make__Show_Methods__Int (Fn (Show_Methods Int))))
+                       (Show_Methods Int)))
                  (Fn Int String)))
 
-          (fn show_thing (dict_Show_a thing)
-            (Fn (ShowMethods a) a String)
-            (:: ((:: (. (:: dict_Show_a (ShowMethods a)) show)
+          (fn show__thing (dict_Show__a thing)
+            (Fn (Show_Methods a) a String)
+            (:: ((:: (. (:: dict_Show__a (Show_Methods a)) show_)
                      (Fn a String))
                  (:: thing a))
                 String))
 
-          (struct (ShowMethods s)
-            (:: show (Fn s String)))
+          (struct (Show_Methods s)
+            (:: show_ (Fn s String)))
 '''
 
         self.assert_lowers(input_text, output_text)
@@ -781,7 +781,8 @@ class TestLowering(unittest.TestCase):
             ]
         message = '\n' + '\n'.join(message_lines)
 
-        self.assertEqual(expected, result, message)
+        result_without_builtins = parse_output(result_str)
+        self.assertEqual(expected, result_without_builtins, message)
 
 
 def parse_output(text):
@@ -829,9 +830,10 @@ def print_result(result):
 
 
 def show_result(result):
+    assert(isinstance(result, Program))
     return '\n'.join(
         syntax.render_lisp(lisp)
-        for lisp in result.to_lisp()
+        for lisp in result.to_lisp(show_builtins=False)
     )
 
 

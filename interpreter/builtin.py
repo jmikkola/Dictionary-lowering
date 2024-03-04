@@ -23,6 +23,7 @@ NAMES = [
 ]
 
 NON_TYPECLASS_NAMES = [
+    '%',
     'and',
     'concat',
     'inc',

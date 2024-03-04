@@ -23,14 +23,14 @@ class TreewalkerTest(unittest.TestCase):
         text = '''
 (fn fib (x)
   (Fn Int Int)
-  (:: (if (:: ((:: < (Fn Int Int Bool)) (:: x Int) 2) Bool)
+  (:: (if (:: ((:: <:Int (Fn Int Int Bool)) (:: x Int) 2) Bool)
         (:: x Int)
-        (:: ((:: + (Fn Int Int))
+        (:: ((:: +:Int (Fn Int Int))
              (:: ((:: fib (Fn Int Int))
-                  (:: ((:: - (Fn Int Int)) (:: x Int) 1) Int))
+                  (:: ((:: -:Int (Fn Int Int)) (:: x Int) 1) Int))
                  Int)
              (:: ((:: fib (Fn Int Int))
-                  (:: ((:: - (Fn Int Int)) (:: x Int) 2) Int))
+                  (:: ((:: -:Int (Fn Int Int)) (:: x Int) 2) Int))
                  Int))
             Int))
        Int))
@@ -61,21 +61,21 @@ class TreewalkerTest(unittest.TestCase):
 
     def test_calling_class_instance_method(self):
         text = '''
-          (fn call_show_pair ()
+          (fn call_show__pair ()
             (Fn String)
-            (:: ((:: show_pair (Fn (Pair Int) String))
+            (:: ((:: show__pair (Fn (Pair Int) String))
                      (:: (new Pair 123 456) (Pair Int)))
                 String))
 
-          (fn show_pair (pair)
-             (=> ((Show t)) (Fn (Pair t) String))
+          (fn show__pair (pair)
+             (=> ((Show_ t)) (Fn (Pair t) String))
              (:: ((:: concat (Fn String String String))
-                  (:: ((:: show (Fn t String))
+                  (:: ((:: show_ (Fn t String))
                        (:: (. (:: pair (Pair t)) x) t))
                       String)
                   (:: ((:: concat (Fn String String String))
                        ", "
-                       (:: ((:: show (Fn t String))
+                       (:: ((:: show_ (Fn t String))
                             (:: (. (:: pair (Pair t)) y) t))
                            String))
                       String))
@@ -85,16 +85,16 @@ class TreewalkerTest(unittest.TestCase):
             (:: x a)
             (:: y a))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 
-          (instance (Show Int)
-            (fn show (i)
+          (instance (Show_ Int)
+            (fn show_ (i)
               ;; use the built-in str function
               (:: ((:: str (Fn Int String)) (:: i Int)) String)))
 '''
 
-        result = eval_expression('(call_show_pair)', file_text=text)
+        result = eval_expression('(call_show__pair)', file_text=text)
 
         expected = treewalker.StringValue('123, 456')
         self.assertEqual(expected, result)
@@ -110,14 +110,14 @@ class TreewalkerTest(unittest.TestCase):
 
           (fn get_instance_method ()
             (Fn (Fn Int String))
-            ;; return the `show` function for Int
-            (:: show (Fn Int String)))
+            ;; return the `show_` function for Int
+            (:: show_ (Fn Int String)))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 
-          (instance (Show Int)
-            (fn show (i)
+          (instance (Show_ Int)
+            (fn show_ (i)
               (:: ((:: str (Fn Int String)) (:: i Int)) String)))
 '''
 
@@ -138,17 +138,17 @@ class TreewalkerTest(unittest.TestCase):
 
           (fn get_partially_applied_function ()
             (Fn (Fn Int String))
-            (:: show_thing (Fn Int String)))
+            (:: show__thing (Fn Int String)))
 
-          (fn show_thing (thing)
-            (=> ((Show a)) (Fn a String))
-            (:: ((:: show (Fn a String)) (:: thing a)) String))
+          (fn show__thing (thing)
+            (=> ((Show_ a)) (Fn a String))
+            (:: ((:: show_ (Fn a String)) (:: thing a)) String))
 
-          (class (Show s)
-            (:: show (Fn s String)))
+          (class (Show_ s)
+            (:: show_ (Fn s String)))
 
-          (instance (Show Int)
-            (fn show (i)
+          (instance (Show_ Int)
+            (fn show_ (i)
               (:: ((:: str (Fn Int String)) (:: i Int)) String)))
 '''
 
@@ -161,10 +161,10 @@ class TreewalkerTest(unittest.TestCase):
         input_text = '''
           (fn tenth-power (x)
              (Fn Int Int)
-             (let ((x2  (* x x))
-                   (x4 (* x2 x2))
-                   (x8 (* x4 x4)))
-                (* x8 x2)))
+             (let ((x2  (*:Int x x))
+                   (x4 (*:Int x2 x2))
+                   (x8 (*:Int x4 x4)))
+                (*:Int x8 x2)))
 '''
 
         result = eval_expression('(tenth-power 2)', file_text=input_text)
@@ -180,13 +180,13 @@ class TreewalkerTest(unittest.TestCase):
             (Fn Int String)
             (let ((add-num (\ (n rest)
                             (concat (str n) (concat "," rest))))
-                  (odd (\ (n) (ctz (+ (* n 3) 1))))
-                  (even (\ (n) (ctz (/ n 2))))
+                  (odd (\ (n) (ctz (+:Int (*:Int n 3) 1))))
+                  (even (\ (n) (ctz (/:Int n 2))))
                   (ctz (\ (n)
-                         (if (== n 1)
+                         (if (==:Int n 1)
                            "1"
                            (add-num n
-                                  (if (== (% n 2) 0) (even n) (odd n)))))))
+                                  (if (==:Int (% n 2) 0) (even n) (odd n)))))))
                 (ctz n)))
 '''
 

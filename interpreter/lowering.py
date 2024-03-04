@@ -18,6 +18,8 @@ This package assumes a few things about the input code:
   hierarchies don't contain cycles)
 """
 
+import typing
+
 from interpreter import builtin
 from interpreter import parser
 
@@ -53,7 +55,7 @@ class LoweringInput:
         self.classes = program.classes
         self.instances = program.instances
 
-        self.builtin_functions = set()
+        self.builtin_functions = set()  # type: typing.Set[str]
 
         self._add_builtins()
 
