@@ -27,15 +27,15 @@ def main(args):
     lowering_result = lowering.lower(inference_result)
 
     if '--dump-lowered' in args:
-        dump_program(lowering_result)
+        dump_program(lowering_result, '--show-builtins' in args)
         return
 
     treewalker.interpret(lowering_result)
 
 
-def dump_program(program):
+def dump_program(program, show_builtins=True):
     first = True
-    for lisp in program.to_lisp():
+    for lisp in program.to_lisp(show_builtins):
         if not first:
             print()
             first = False

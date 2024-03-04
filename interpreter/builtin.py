@@ -22,6 +22,18 @@ NAMES = [
     'str',
 ]
 
+NON_TYPECLASS_NAMES = [
+    'and',
+    'concat',
+    'inc',
+    'length',
+    'not',
+    'or',
+    'print',
+    'str',
+]
+
+
 TYPES = [
     'Int',
     'Float',

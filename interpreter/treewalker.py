@@ -69,6 +69,8 @@ class Interpreter:
 
         if isinstance(expression, syntax.EVariable):
             name = expression.name
+            if ':' in name:
+                name, _ = name.split(':', 1)
             if name in self.builtin:
                 return BuiltinFunction(name)
             try:
@@ -235,11 +237,11 @@ class Interpreter:
             return StringValue(arg_values[0].value + arg_values[1].value)
         elif name == 'print':
             assert(len(arg_values) == 1)
-            assert(isinstance(arg_values[0], StringValue))
+            value = arg_values[0].builtin_str()
             if self.print_fn is not None:
-                self.print_fn(arg_values[0].value)
+                self.print_fn(value)
             else:
-                print(arg_values[0].value)
+                print(value)
             return VoidValue()
         elif name == 'and':
             self._expect_arg_types(name, arg_values, 2, (BoolValue,))

@@ -22,11 +22,11 @@ class Program:
         self.classes = classes  # type: typing.List[syntax.ClassDef]
         self.instances = instances # type: typing.List[syntax.InstanceDef]
 
-    def to_lisp(self):
-        lisp = [f.to_lisp() for f in self.functions]
-        lisp += [s.to_lisp() for s in self.structs]
-        lisp += [c.to_lisp() for c in self.classes]
-        lisp += [i.to_lisp() for i in self.instances]
+    def to_lisp(self, show_builtins=False):
+        lisp = [f.to_lisp() for f in self.functions if show_builtins or not f.is_builtin]
+        lisp += [s.to_lisp() for s in self.structs if show_builtins or not s.is_builtin]
+        lisp += [c.to_lisp() for c in self.classes if show_builtins or not c.is_builtin]
+        lisp += [i.to_lisp() for i in self.instances if show_builtins or not i.is_builtin]
         return lisp
 
     def __eq__(self, o):

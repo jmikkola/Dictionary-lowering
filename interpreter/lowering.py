@@ -19,6 +19,7 @@ This package assumes a few things about the input code:
 """
 
 from interpreter import builtin
+from interpreter import parser
 
 from interpreter.syntax import (
     DFunction, InstanceDef, StructDef,
@@ -51,6 +52,90 @@ class LoweringInput:
         self.structs = program.structs
         self.classes = program.classes
         self.instances = program.instances
+
+        self.builtin_functions = set()
+
+        self._add_builtins()
+
+    def _add_builtins(self):
+        text = '''
+(class (Show a)
+  (:: show (Fn a String)))
+
+(class (Eq a)
+  (:: == (Fn a a Bool))
+  (:: != (Fn a a Bool)))
+
+(class (Ord a) superclasses (Eq)
+  (:: <  (Fn a a Bool))
+  (:: <= (Fn a a Bool))
+  (:: >  (Fn a a Bool))
+  (:: >= (Fn a a Bool)))
+
+(class (Num a) superclasses (Eq Show)
+  (:: + (Fn a a a))
+  (:: - (Fn a a a))
+  (:: * (Fn a a a))
+  (:: / (Fn a a a)))
+
+(instance (Show Int)
+  (fn show (x) (show:Int x)))
+
+(instance (Eq Int)
+  (fn == (x y) (==:Int x y))
+  (fn != (x y) (not (==:Int x y))))
+
+(instance (Num Int)
+  (fn + (x y) (+:Int x y))
+  (fn - (x y) (-:Int x y))
+  (fn * (x y) (*:Int x y))
+  (fn / (x y) (/:Int x y)))
+
+(instance (Ord Int)
+  (fn <  (x y) (<:Int x y))
+  (fn <= (x y) (<=:Int x y))
+  (fn >  (x y) (>:Int x y))
+  (fn >= (x y) (>=:Int x y)))
+
+(instance (Show Float)
+  (fn show (x) (show:Float x)))
+
+(instance (Eq Float)
+  (fn == (x y) (==:Float x y))
+  (fn != (x y) (not (==:Float x y))))
+
+(instance (Num Float)
+  (fn + (x y) (+:Float x y))
+  (fn - (x y) (-:Float x y))
+  (fn * (x y) (*:Float x y))
+  (fn / (x y) (/:Float x y)))
+
+(instance (Ord Float)
+  (fn <  (x y) (<:Float x y))
+  (fn <= (x y) (<=:Float x y))
+  (fn >  (x y) (>:Float x y))
+  (fn >= (x y) (>=:Float x y)))
+'''
+
+        parsed = parser.parse(text)
+
+        # Mark these as builtin so that the code derrived from it doesn't have to get dumped
+        for c in parsed.classes:
+            c.is_builtin = True
+        for i in parsed.instances:
+            i.is_builtin = True
+
+        self.classes.extend(parsed.classes)
+        self.instances.extend(parsed.instances)
+
+        operators = ['+', '-', '*', '/', '==', '!=', 'show', '<', '<=', '>', '>=']
+        num_types = ['Int', 'Float']
+
+        for t in num_types:
+            for op in operators:
+                name = op + ':' + t
+                self.builtin_functions.add(name)
+
 
     def lower(self):
         ''' returns a Program containing the results '''
@@ -108,7 +193,12 @@ class LoweringInput:
         #     type_variables |= method_type.free_type_vars()
 
 
-        return StructDef(dictionary_name, [tv.type_variable], fields)
+        return StructDef(
+            dictionary_name,
+            [tv.type_variable],
+            fields,
+            is_builtin=class_def.is_builtin
+        )
 
     def _to_super_field(self, tclass, tv):
         # Prefix the field's name with 'super' to note the fact that this
@@ -144,7 +234,8 @@ class LoweringInput:
             declaration.name,
             decl_type,
             new_arg_names + declaration.arg_names,
-            body
+            body,
+            is_builtin=declaration.is_builtin
         )
 
     def _predicates_to_arg_types(self, qualified):
@@ -225,6 +316,7 @@ class LoweringInput:
             t=function_type,
             arg_names=arg_names,
             body=struct_expr,
+            is_builtin=instance.is_builtin,
         )
 
     def _to_super_dictionary(self, context, t, tclass):
@@ -338,6 +430,9 @@ class LoweringInput:
                 # TODO: This is incorrect if a local let binding is allowed to
                 # have class constrains (which they are in Haskell). Fixing
                 # this will require adding a Qualified to let bindings.
+                return expression
+
+            if name in self.builtin_functions:
                 return expression
 
             declaration = context.get_from_scope(name)
@@ -472,7 +567,7 @@ class Context:
 
     @classmethod
     def build(cls, classes, instances, declarations):
-        locals = builtin.NAMES
+        locals = builtin.NON_TYPECLASS_NAMES
 
         scope = {
             d.name: d
@@ -642,9 +737,11 @@ class Context:
             if instance.get_class() != predicate.tclass:
                 continue
 
-            substitution = match(instance.get_type(), predicate.t)
-            if substitution is not None:
+            try:
+                substitution = match(instance.get_type(), predicate.t)
                 return (substitution, instance)
+            except TypeError:
+                continue
 
         raise RuntimeError(f'could not find matching instance for {predicate}')
 

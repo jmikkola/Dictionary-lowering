@@ -417,11 +417,12 @@ class Declaration:
 
 
 class DFunction(Declaration):
-    def __init__(self, name: str, t, arg_names: list, body: Expression):
+    def __init__(self, name: str, t, arg_names: list, body: Expression, is_builtin=False):
         self.name = name
         self.t = t
         self.arg_names = arg_names
         self.body = body
+        self.is_builtin = is_builtin
 
     def __str__(self):
         args = ' '.join(self.arg_names)
@@ -478,11 +479,12 @@ class MethodDecl:
 class ClassDef:
     # supers: list[TClass]
     # methods: list[MethodDecl]
-    def __init__(self, tclass: TClass, supers: list, tvar: TypeVariable, methods: list):
+    def __init__(self, tclass: TClass, supers: list, tvar: TypeVariable, methods: list, is_builtin=False):
         self.tclass = tclass
         self.supers = supers
         self.tvar = tvar
         self.methods = methods  # type: typing.List[MethodDecl]
+        self.is_builtin = is_builtin
 
     def __str__(self):
         super_part = ''
@@ -534,9 +536,10 @@ class ClassDef:
 
 class InstanceDef:
     # method_name: list[DFunction]
-    def __init__(self, qual_pred: Qualified, method_impls: list):
+    def __init__(self, qual_pred: Qualified, method_impls: list, is_builtin=False):
         self.qual_pred = qual_pred
         self.method_impls = method_impls  # type: typing.List[DFunction]
+        self.is_builtin = is_builtin
 
     def __str__(self):
         result = f'instance {self.qual_pred} where'
@@ -579,7 +582,7 @@ class InstanceDef:
 
 
 class StructDef:
-    def __init__(self, name: str, type_vars: list, fields: list):
+    def __init__(self, name: str, type_vars: list, fields: list, is_builtin=False):
         '''
         type_vars: list[TypeVariable]
         fields: list[tuple[str, Type]]
@@ -587,6 +590,7 @@ class StructDef:
         self.name = name
         self.type_vars = type_vars
         self.fields = fields
+        self.is_builtin = is_builtin
 
     def __str__(self):
         return render_lisp(self.to_lisp())
