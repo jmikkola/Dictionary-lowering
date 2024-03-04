@@ -5,7 +5,6 @@
   superclasses (Parent)
   (:: child (Fn c Int)))
 
-;; TODO: Inference is buggy and doesn't accept this
 (instance (Parent String)
   (fn parent (s)
     (length s)))

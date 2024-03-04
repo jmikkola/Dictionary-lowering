@@ -696,7 +696,7 @@ class InferenceTest(unittest.TestCase):
         f = program.instances[0].method_impls[0]
         qt = f.t.apply(inf.substitution)
 
-        expected = qualified('(Fn t1 String)')
+        expected = qualified('(Fn Point String)')
         self.assertEqual(expected, qt)
 
     def test_checks_types_of_instance_methods_with_incorrect_type(self):
@@ -828,6 +828,25 @@ class InferenceTest(unittest.TestCase):
         expected_lisp = parser._parse_one_list(expected_text)
 
         self.assertEqual(expected_lisp, function.to_lisp())
+
+    def test_instance_with_concrete_type(self):
+        text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (length s)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        instance = program.instances[0]
+        function = instance.method_impls[0]
+
+        expected_type = qualified('(Fn String Int)')
+        self.assertEqual(expected_type, function.t)
 
 
     # Test mutually recursive functions

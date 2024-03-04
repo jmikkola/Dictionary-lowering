@@ -350,6 +350,14 @@ class Inference:
                     inst_preds + method_def.qual_type.predicates,
                     method_def.qual_type.t
                 )
+
+                instance_type_substitution = types.Substitution.singleton(
+                    class_def.tvar,
+                    instance.get_type()
+                )
+
+                method_qual = method_qual.apply(instance_type_substitution)
+
                 method_scheme = types.Scheme.quantify(
                     method_qual.free_type_vars(),
                     method_qual
