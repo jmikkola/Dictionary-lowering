@@ -83,6 +83,7 @@ class Inference:
         self._parse_and_add_assumption('not', '(Fn Bool Bool)')
         self._parse_and_add_assumption('print', '(Fn a Void)')
         self._parse_and_add_assumption('concat', '(Fn String String String)')
+        self._parse_and_add_assumption('length', '(Fn String Int)')
 
     def add_classes(self, classes):
         for cls in classes:

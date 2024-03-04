@@ -60,6 +60,7 @@ class LoweringInput:
         self._add_builtins()
 
     def _add_builtins(self):
+        # TODO: Add all the other built-in classes
         text = '''
 (class (Show a)
   (:: show (Fn a String)))

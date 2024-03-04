@@ -35,18 +35,30 @@ The file run must contain a `main` function.
 
 (instance (Parent String)
   (fn parent (s)
-    (:: ((:: length (Fn String Int)) (:: s String)) Int)))
+    (length s)))
 
 (instance (Child String)
   (fn child (s)
-    (::
-      ((:: inc (Fn Int Int))
-       (:: ((:: parent (Fn String Int)) (:: s String)) Int))
-      Int)))
+    (inc (parent s))))
+
+(fn use-child-class (x)
+  (child x))
 ```
 
-The nodes that start with `::` are defining the type of the first argument.
-This is currently necessary because this has no type checker or type inference.
+Functions can be given explicit types, e.g.
+
+
+```
+(fn use-child-class (x)
+  (=> ((Child a)) (Fn a Int))
+  (child x))
+```
+
+Expressions can also be typed by wrapping them in a `(:: <expression> <type>)` annotation, e.g.
+
+```
+(+ (:: foo Int) (:: bar Int))
+```
 
 
 ## Status
