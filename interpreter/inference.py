@@ -77,7 +77,7 @@ class Inference:
         self._parse_and_add_assumption('%', '(=> ((Integral a)) (Fn a a a))')
 
         self._parse_and_add_assumption('str', '(Fn a String)')
-        self._parse_and_add_assumption('inc', '(Fn Int Int Int)')
+        self._parse_and_add_assumption('inc', '(Fn Int Int)')
         self._parse_and_add_assumption('and', '(Fn Bool Bool Bool)')
         self._parse_and_add_assumption('or', '(Fn Bool Bool Bool)')
         self._parse_and_add_assumption('not', '(Fn Bool Bool)')

@@ -848,6 +848,32 @@ class InferenceTest(unittest.TestCase):
         expected_type = qualified('(Fn String Int)')
         self.assertEqual(expected_type, function.t)
 
+    def test_child_and_parent_class(self):
+        text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (length s)))
+
+(instance (Child String)
+  (fn child (s)
+    (inc (parent s))))
+
+;; (fn use-child-class (x)
+;;    (child x))
+
+;; (fn main ()
+;;    (print (use-child-class "xyz")))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
 
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
