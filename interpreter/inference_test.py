@@ -933,6 +933,40 @@ class InferenceTest(unittest.TestCase):
         with self.assertRaises(types.TypeError):
             inference.infer_types(program)
 
+    def test_allows_main_with_valid_type(self):
+        text = '''
+(fn main ()
+   (print "hi"))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        # might as well check the type while we're here
+        expected_type = qualified('(Fn Void)')
+        self.assertEqual(expected_type, function.t)
+
+    def test_rejects_main_with_invalid_type(self):
+        text = '''
+(fn main (x y z)
+   (print "hi"))
+'''
+
+        program = parser.parse(text)
+        with self.assertRaises(types.TypeError):
+            inference.infer_types(program)
+
+    def test_allows_main_that_returns_a_value(self):
+        text = '''
+(fn main ()
+   "hi")
+'''
+
+        program = parser.parse(text)
+        inference.infer_types(program)
+
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings

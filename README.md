@@ -68,10 +68,8 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 The next steps are:
 
 - [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
-    - Support explicitly-typed expressions
     - Retain predicates for let bindings of functions
     - Precompute the schemes for struct construction and destruction
-    - Check that `main` has the right type
     - Check that the necessary superclass implementations exist
     - Write the other tests in inference_test.py
 - Add enum/tagged untion types (e.g. Some(x) | None)

@@ -326,6 +326,13 @@ class Inference:
             body_type
         )
 
+        # special rule for main
+        if function.name == 'main':
+            # allow any return value, but require no args
+            # DFunction
+            if function.arg_names:
+                raise types.TypeError(f'function main cannot have args, has {function.arg_names}')
+
         return predicates, function_type
 
     def infer_instances(self, assumptions, instances):
