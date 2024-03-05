@@ -8,17 +8,17 @@
 
 (fn get_partially_applied_function ()
     (Fn (Fn Int String))
-    (:: show_thing (Fn Int String)))
+    (:: show__thing (Fn Int String)))
 
-(fn show_thing (thing)
-    (=> ((Show a)) (Fn a String))
-    (:: ((:: show (Fn a String)) (:: thing a)) String))
+(fn show__thing (thing)
+    (=> ((Show_ a)) (Fn a String))
+    (:: ((:: show_ (Fn a String)) (:: thing a)) String))
 
-(class (Show s)
-       (:: show (Fn s String)))
+(class (Show_ s)
+       (:: show_ (Fn s String)))
 
-(instance (Show Int)
-          (fn show (i)
+(instance (Show_ Int)
+          (fn show_ (i)
               (:: ((:: str (Fn Int String)) (:: i Int)) String)))
 
 (fn main ()

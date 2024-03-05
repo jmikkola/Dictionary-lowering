@@ -865,21 +865,78 @@ class InferenceTest(unittest.TestCase):
   (fn child (s)
     (inc (parent s))))
 
-;; (fn use-child-class (x)
-;;    (child x))
+(fn use-child-class (x)
+  (child x))
 
-;; (fn main ()
-;;    (print (use-child-class "xyz")))
+(fn main ()
+  (print (use-child-class "xyz")))
 '''
 
         program = parser.parse(text)
         program = inference.infer_types(program)
 
+        inst = next(i for i in program.instances if i.get_class().name == 'Child')
+        method = inst.method_impls[0]
+
+        expected_type = qualified('(Fn String Int)')
+        self.assertEqual(expected_type, method.t)
+
+    def test_user_defined_types(self):
+        text = '''
+(fn f (x y)
+  (== x (:: y Int)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_type = qualified('(Fn Int Int Bool)')
+        self.assertEqual(expected_type, function.t)
+
+    def test_allows_matching_user_defined_type(self):
+        text = '''
+(fn f ()
+  (:: (\ (x) x) (Fn a a)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_type = qualified('(Fn (Fn a a))')
+        self.assertEqual(expected_type, function.t)
+
+    def test_allows_narrower_user_defined_type(self):
+        text = '''
+(fn f ()
+  (:: (\ (x) x) (Fn String String)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        function = program.functions[0]
+
+        expected_type = qualified('(Fn (Fn String String))')
+        self.assertEqual(expected_type, function.t)
+
+    def test_rejects_wider_user_defined_type(self):
+        text = '''
+(fn f ()
+  (:: (\ (x) x) (Fn a b)))
+'''
+        program = parser.parse(text)
+
+        with self.assertRaises(types.TypeError):
+            inference.infer_types(program)
+
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings
     # Test handling explicitly typed bindings
-    # Test handling user-defined types
     # Test checking the types of instance implementations
     # Test that finalized types are written back to the resulting code
     # Test instances with instance predicates

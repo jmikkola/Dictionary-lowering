@@ -389,9 +389,16 @@ class Inference:
         return ([], lit.get_type())
 
     def infer_expression(self, assumptions, expr: syntax.Expression, expressions):
-        # TODO: handle user-defined expression types
+        user_defined_type = expr.t
 
         predicates, t = self._infer_expression(assumptions, expr, expressions)
+
+        if user_defined_type is not None:
+            # Allow the user-defined type to be narrower but not wider than the
+            # resulting type
+            sub = types.match(t, user_defined_type)
+            self.substitution = self.substitution.compose(sub)
+            t = t.apply(self.substitution)
 
         expr.t = t
         expressions.append(expr)
