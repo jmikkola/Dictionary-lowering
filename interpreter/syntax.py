@@ -481,7 +481,7 @@ class ClassDef:
     # methods: list[MethodDecl]
     def __init__(self, tclass: TClass, supers: list, tvar: TypeVariable, methods: list, is_builtin=False):
         self.tclass = tclass
-        self.supers = supers
+        self.supers = supers  # type: typing.List[TClass]
         self.tvar = tvar
         self.methods = methods  # type: typing.List[MethodDecl]
         self.is_builtin = is_builtin

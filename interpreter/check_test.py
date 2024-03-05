@@ -58,6 +58,55 @@ class CheckTest(unittest.TestCase):
 '''
         self.assert_error(text, 'Undefined class ClassB')
 
+    def test_superclasses_and_instances_accepted(self):
+        text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (length s)))
+
+(instance (Child String)
+  (fn child (s)
+    (inc (parent s))))
+'''
+        self.assert_no_error(text)
+
+    def test_instance_of_just_parent(self):
+        text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Parent String)
+  (fn parent (s)
+    (length s)))
+'''
+        self.assert_no_error(text)
+
+    def test_instance_of_just_child(self):
+        text = '''
+(class (Parent p)
+  (:: parent (Fn p Int)))
+
+(class (Child c)
+  superclasses (Parent)
+  (:: child (Fn c Int)))
+
+(instance (Child String)
+  (fn child (s)
+    (inc (parent s))))
+'''
+        self.assert_error(text, "The class Child is implemented for String but its superclass Parent is not")
+
     def test_class_methods_must_contain_class_type_variable(self):
         text = '''
 (class (ClassA a)

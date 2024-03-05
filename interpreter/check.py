@@ -182,7 +182,8 @@ class Checker:
     def _check_instance(self, instance):
         self._ensure_class_exists(instance.get_class().name)
 
-        # Assemble a qualified type to check the type, the predicates, and that the predicates apply to the type
+        # Assemble a qualified type to check the type, the predicates, and that
+        # the predicates apply to the type
         qual = types.Qualified(instance.get_predicates(), instance.get_type())
         self._check_qualified(qual)
 
@@ -193,6 +194,10 @@ class Checker:
         for c in self.program.classes:
             if c.tclass == instance.get_class():
                 classdef = c
+
+        # Check that implementations exist for the superclasses
+        for sup in c.supers:
+            self._ensure_super_instance_exists(instance, sup)
 
         # Check the methods
         defined_methods = {
@@ -217,6 +222,22 @@ class Checker:
             inst_method = defined_methods[method.method_name]
             if len(inst_method.arg_names) != method.num_args():
                 raise CheckFailure(f'The {method.method_name} method of instance {iname} has the wrong number of arguments')
+
+    def _ensure_super_instance_exists(self, instance, sup: types.TClass):
+        implemented_type = instance.get_type()
+
+        # TODO: if a program defines a class that uses a built-in class as a
+        # superclass, this won't know what implementations that superclass has.
+        for sup_instance in self.program.instances:
+            if sup_instance.get_class() != sup:
+                continue
+
+            sup_type = sup_instance.get_type()
+            if types.matches(sup_type, implemented_type):
+                return
+
+        cls_name = instance.get_class().name
+        raise CheckFailure(f'The class {cls_name} is implemented for {implemented_type} but its superclass {sup.name} is not')
 
     def _check_instance_overlap(self, classname, insts_for_class):
         # Check all pairwise combinations

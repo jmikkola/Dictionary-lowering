@@ -432,6 +432,14 @@ def match(l: Type, r: Type) -> Substitution:
     raise TypeError(f'types do not match: {l} and {r}')
 
 
+def matches(l: Type, r: Type):
+    try:
+        match(l, r)
+        return True
+    except TypeError:
+        return False
+
+
 def make_function_type(arg_types: list, return_type: Type) -> Type:
     return TApplication(
         TConstructor('Fn'),
