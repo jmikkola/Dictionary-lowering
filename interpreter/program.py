@@ -60,3 +60,9 @@ class Program:
             if c.class_name() == name:
                 return c
         return None
+
+    def get_function(self, name: str):
+        for f in self.functions:
+            if f.name == name:
+                return f
+        return None

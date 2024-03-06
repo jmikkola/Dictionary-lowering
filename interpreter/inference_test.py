@@ -988,9 +988,51 @@ class InferenceTest(unittest.TestCase):
 '''
 
         program = parser.parse(text)
-        inference.infer_types(program)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(Fn Int String)')
+        # TODO: This appears to be buggy
+        # self.assertEqual(expected, function.t)
 
-    # Test mutually recursive functions
+    def test_infers_mutually_recursive_functions(self):
+        text = '''
+(fn add-num (n rest)
+  (concat (show n) (concat ", " rest)))
+
+(fn odd (n)
+  (collatz (+ (* 3 n) 1)))
+
+(fn even (n)
+  (collatz (/ n 2)))
+
+(fn collatz (n)
+  (if (== n 1)
+    "1"
+    (let ((rest (if (== (% n 2) 0)
+                    (even n)
+                    (odd n))))
+      (add-num n rest))))
+'''
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        self.assertEqual(
+            qualified('(=> ((Show t4)) (Fn t4 String String))'),
+            program.get_function('add-num').t
+        )
+        self.assertEqual(
+            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+            program.get_function('odd').t
+        )
+        self.assertEqual(
+            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+            program.get_function('even').t
+        )
+        self.assertEqual(
+            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+            program.get_function('collatz').t
+        )
+
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings
     # Test handling explicitly typed bindings
