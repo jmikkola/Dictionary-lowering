@@ -71,7 +71,7 @@ The next steps are:
     - Retain predicates for let bindings of functions
     - Precompute the schemes for struct construction and destruction
     - Write the other tests in inference_test.py
-- Add enum/tagged untion types (e.g. Some(x) | None)
+- Add enum/tagged union types (e.g. Some(x) | None)
 
 Things that would be nice to add:
 

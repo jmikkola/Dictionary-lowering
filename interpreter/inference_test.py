@@ -971,6 +971,25 @@ class InferenceTest(unittest.TestCase):
         program = parser.parse(text)
         inference.infer_types(program)
 
+    def test_infers_mutually_recursive_let_bindings(self):
+        text = '''
+(fn collatz-seq (n)
+  (let ((add-num (\ (n rest)
+                    (concat (str n) (concat "," rest))))
+        (odd  (\ (n) (ctz (+ (* n 3) 1))))
+        (even (\ (n) (ctz (/ n 2))))
+        (ctz  (\ (n)
+                (if (== n 1)
+                  "1"
+                  (add-num
+                    n
+                    (if (== (% n 2) 0) (even n) (odd n)))))))
+      (ctz n)))
+'''
+
+        program = parser.parse(text)
+        inference.infer_types(program)
+
     # Test mutually recursive functions
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings

@@ -663,7 +663,7 @@ class Inference:
         for a in ambiguities:
             candidate_types = self.candidates(a)
             if len(candidate_types) == 0:
-                raise types.TypeError(f'No default type for {a.type_variable}')
+                raise types.TypeError(f'No default type for {a.type_variable} {predicates}')
             sub[a.type_variable] = candidate_types[0]
 
         return types.Substitution(sub)
@@ -675,7 +675,7 @@ class Inference:
         for a in ambiguities:
             candidate_types = self.candidates(a)
             if len(candidate_types) == 0:
-                raise types.TypeError(f'No default type for {a.type_variable}')
+                raise types.TypeError(f'No default type for {a.type_variable} {predicates}')
 
             # Update the substitution to record what the type was defaulted to
             self.unify_types(
