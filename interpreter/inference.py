@@ -696,7 +696,10 @@ class Inference:
             if not isinstance(pred.t, types.TVariable):
                 return []
 
-        class_names = [p.tclass.name for p in ambiguity.predicates]
+        class_names = set()
+        for p in ambiguity.predicates:
+            for p_super in self.get_predicates_for_superclasses(p):
+                class_names.add(p_super.tclass.name)
 
         # Only number types are resolvable
         if 'Num' not in class_names:

@@ -94,6 +94,10 @@ class InferenceTest(unittest.TestCase):
         candidates = inf.candidates(inference.Ambiguity(a, [integral, num]))
         self.assertEqual([t_int], candidates)
 
+        # Subclasses of Num have candidates (even if they don't explicitly list Num)
+        candidates = inf.candidates(inference.Ambiguity(a, [integral]))
+        self.assertEqual([t_int], candidates)
+
         # Does not resolve an ambiguity that is not in HNF:
         t = types.TApplication(types.TConstructor('List'), [types.TVariable(a)])
         num_t = types.Predicate(types.TClass('Num'), t)
