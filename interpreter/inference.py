@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 import typing
+import functools
 
 from interpreter import builtin
 from interpreter import graph
@@ -235,10 +236,10 @@ class Inference:
         updated_assumptions = global_assumptions.apply(self.substitution)
         context_tvars = updated_assumptions.free_type_vars()
 
-        binding_tvars = set()
-        for t in function_types.values():
-            binding_tvars |= t.free_type_vars()
-        binding_tvars -= context_tvars
+        binding_tvars = functools.reduce(
+            lambda vars1, vars2: vars1 & vars2,
+            (t.free_type_vars() for t in function_types.values())
+        )
 
         deferred, retained = self.split(context_tvars, binding_tvars, predicates)
 
@@ -547,23 +548,14 @@ class Inference:
                 for (name, tvar) in binding_tvars.items()
             })
 
-            predicates = []
+            binding_predicates = []
             binding_types = {}
 
             for binding in expr.bindings:
                 ps, binding_t = self.infer_expression(temp_assumptions, binding.value, expressions)
-                predicates.extend(ps)
+                binding_predicates.extend(ps)
                 binding_types[binding.name] = binding_t
                 self.unify_types(binding_t, binding_tvars[binding.name])
-
-            # TODO: Should this handle splitting predicates into
-            # deferred/retained and applying the monomorphism restriction?
-            # Bindings that are not binding lambda functions should also have
-            # the monomorphism restriction applied.
-            # (Which doesn't mean the type can't generalize, just that it can't
-            # have predicates.)
-            # (Keeping predicates on these bindings may require changing some
-            # lowering logic)
 
             # Update the types with the information learned after typing all the bindings
             # (one binding might narrow the type of another)
@@ -572,30 +564,34 @@ class Inference:
                 for (name, t) in binding_types.items()
             }
 
-            # Find what type variables are actually new in these binding's types
-            # (vs. those already bound at some outer binding)
-            binding_vars = set()
-            for t in binding_types.values():
-                binding_vars |= t.free_type_vars()
-            free_vars = binding_vars - assumptions.free_type_vars()
+            binding_predicates = self.substitution.apply_to_list(binding_predicates)
+
+            # Apply the substitution to the context because it may have
+            # narrowed the type (or changed type variables) in the type of
+            # other variables in the function (e.g. arguments).
+            context_tvars = assumptions.apply(self.substitution).free_type_vars()
+
+            # Find what type variables are in all the binding's types
+            binding_tvars = functools.reduce(
+                lambda vars1, vars2: vars1 & vars2,
+                (t.free_type_vars() for t in binding_types.values())
+            )
+
+            deferred, retained = self.split(context_tvars, binding_tvars, binding_predicates)
 
             # Now that the types of the bindings are known, use that information to
             # generalize them.
-
             inner_assumptions = assumptions.make_child({
-                # TODO: this needs the free type vars limited to those not free in the env
-                # TODO: this needs the predicates split first
                 name: types.Scheme.quantify(
-                    t.free_type_vars(),
-                    types.Qualified(predicates, t)
+                    binding_tvars,
+                    types.Qualified(retained, t)
                 )
                 for (name, t) in binding_types.items()
             })
 
-            ps, inner_t = self.infer_expression(inner_assumptions, expr.inner, expressions)
-            predicates.extend(ps)
+            preds, inner_t = self.infer_expression(inner_assumptions, expr.inner, expressions)
 
-            return (predicates, inner_t)
+            return (preds + deferred, inner_t)
 
         elif isinstance(expr, syntax.EIf):
             predicates = []

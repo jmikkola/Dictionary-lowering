@@ -479,7 +479,7 @@ class InferenceTest(unittest.TestCase):
         expr = expression('(let ((x 123.0) (y (* 2.0 x))) y)')
         predicates, t = inf.infer_expression(assumptions, expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
-        self.assertEqual([predicate('(Num Float)'), predicate('(Num Float)')], predicates)
+        self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
 
@@ -990,9 +990,7 @@ class InferenceTest(unittest.TestCase):
         program = parser.parse(text)
         program = inference.infer_types(program)
         function = program.functions[0]
-        expected = qualified('(Fn Int String)')
-        # TODO: This appears to be buggy
-        # print(function.t)
+        expected = qualified('(=> ((Integral t41)) (Fn t41 String))')
         self.assertEqual(expected, function.t)
 
     def test_let_binding_with_predicates(self):
@@ -1006,6 +1004,19 @@ class InferenceTest(unittest.TestCase):
         program = inference.infer_types(program)
         function = program.functions[0]
         expected = qualified('(=> ((Num t7)) (Fn t7 t7))')
+        self.assertEqual(expected, function.t)
+
+    def test_let_binding_with_deferred_predicates(self):
+        text = '''
+(fn foo (x)
+  (let ((is-three (== 3 x)))
+     is-three))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(=> ((Num t4)) (Fn t4 Bool))')
         self.assertEqual(expected, function.t)
 
     def test_infers_mutually_recursive_functions(self):
