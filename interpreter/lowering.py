@@ -391,9 +391,11 @@ class LoweringInput:
             # dictionary passing in the body or binding expressions.
             # (bindings are allowed to refer to each other)
             binding_names = [b.name for b in expression.bindings]
-            lambda_context = context.for_method(binding_names, [])
+            binding_predicates = [p for b in expression.bindings for p in b.get_predicates()]
+            lambda_context = context.for_method(binding_names, binding_predicates)
 
             bindings = [
+                # TODO: Give special treatment for b.value if it is a lambda
                 Binding(b.name, self._lower_expression(lambda_context, b.value))
                 for b in expression.bindings
             ]

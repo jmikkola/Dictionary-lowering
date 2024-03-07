@@ -383,7 +383,7 @@ class Inference:
     def apply_sub_to_expressions(self, expressions):
         ''' Modifies the expressions in-place, applying the given substitution to their types '''
         for expr in expressions:
-            assert(isinstance(expr, syntax.Expression))
+            assert(isinstance(expr, syntax.Expression) or isinstance(expr, syntax.Binding))
             assert(expr.t is not None)
             expr.t = expr.t.apply(self.substitution)
 
@@ -588,6 +588,12 @@ class Inference:
                 )
                 for (name, t) in binding_types.items()
             })
+
+            for binding in expr.bindings:
+                binding_type = binding_types[binding.name]
+                binding_qual = types.Qualified(retained, binding_type)
+                binding.t = binding_qual
+                expressions.append(binding)
 
             preds, inner_t = self.infer_expression(inner_assumptions, expr.inner, expressions)
 

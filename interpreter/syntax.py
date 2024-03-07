@@ -121,7 +121,7 @@ class ELiteral(Expression):
 
     def to_lisp(self):
         lisp = self.literal.to_lisp()
-        if self.t is not None:
+        if self.t is not None and self.literal.get_type() == TConstructor('Int'):
             lisp = add_type(lisp, self.t)
         return lisp
 
@@ -303,6 +303,9 @@ class Binding:
     def __init__(self, name: str, value: Expression):
         self.name = name
         self.value = value
+        # this type can't be explicitly set in the syntax, but is used to store
+        # results from type inference
+        self.t = None
 
     def __str__(self):
         return f'{self.name} = {self.value}'
@@ -315,6 +318,11 @@ class Binding:
 
     def to_lisp(self):
         return [self.name, self.value.to_lisp()]
+
+    def get_predicates(self):
+        if self.t is None:
+            return []
+        return self.t.predicates
 
 
 class ELet(Expression):

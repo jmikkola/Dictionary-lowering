@@ -1,5 +1,6 @@
 import unittest
 
+from interpreter import inference
 from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
@@ -165,6 +166,56 @@ class TestLowering(unittest.TestCase):
 '''
 
         self.assert_lowers(input_text, output_text)
+
+    def test_lowering_returned_lambda_function_using_predicates(self):
+        text = '''
+(fn return-lambda (unused)
+  (\ (x) (show x)))
+'''
+
+        # TODO: the dictionary arg should get added to return-lambda;
+        # return values of functions aren't polymorphic after they are returned
+
+        # TODO: create a assert_lowers_with_inference helper
+
+    def test_lowering_let_binding_with_predicates_and_multiple_instantiations(self):
+        text = '''
+(fn use-to-str ()
+  (let ((to-str (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+        # Infer types for this
+        program = inference.infer_types(parser.parse(text))
+        print(show_result(program))
+
+        # Lower it
+        lowered = lowering.LoweringInput(program).lower()
+
+        output_text = '''
+(fn use-to-str ()
+  (=> () (Fn String))
+  (:: (let ((to-str (:: (\ (dict_Show_n n)
+                           (:: ((:: (. (:: dict_Show_n (ShowMethods t4)) show)
+                                    (Fn t4 String))
+                                (:: n t4))
+                               String))
+                        (Fn t4 String))))
+         (:: ((:: concat (Fn String String String))
+              (:: ((:: to-str (Fn (ShowMethods Bool) Bool String))
+                   (:: ((:: make__ShowMethods__Bool (Fn (ShowMethods Bool))))
+                       (ShowMethods Bool))
+                   true)
+                  String)
+              (:: ((:: to-str (Fn (ShowMethods String) String String))
+                   (:: ((:: make__ShowMethods__String (Fn (ShowMethods String))))
+                       (ShowMethods String))
+                   "")
+                  String))
+             String))
+      String))
+'''
+        output = parser.parse(output_text)
+        self.assert_programs_equal(expected=output, result=lowered)
 
     def test_lowering_lambda_expression(self):
         input_text = '''
@@ -762,6 +813,9 @@ class TestLowering(unittest.TestCase):
 
         result = lowering_input.lower()
 
+        self.assert_programs_equal(expected, result)
+
+    def assert_programs_equal(self, expected, result):
         expected_str = show_result(expected)
         result_str = show_result(result)
 
@@ -840,6 +894,7 @@ def show_result(result):
 def make_lowering_input(text):
     parse_result = parser.parse(text)
     return lowering.LoweringInput(parse_result)
+
 
 if __name__ == '__main__':
     unittest.main()

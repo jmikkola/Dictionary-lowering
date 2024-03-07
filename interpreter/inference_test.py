@@ -2,6 +2,7 @@ import unittest
 
 from interpreter import inference
 from interpreter import parser
+from interpreter import syntax
 from interpreter import types
 
 
@@ -759,7 +760,7 @@ class InferenceTest(unittest.TestCase):
 '''
         expected_lisp = parser._parse_one_list(expected_text)
 
-        self.assertEqual(expected_lisp, function.to_lisp())
+        self.assertEqual(syntax.render_lisp(expected_lisp), syntax.render_lisp(function.to_lisp()))
 
     def test_sets_types_of_expressions_in_implicitly_typed_fn(self):
         text = '''
@@ -1004,6 +1005,32 @@ class InferenceTest(unittest.TestCase):
         program = inference.infer_types(program)
         function = program.functions[0]
         expected = qualified('(=> ((Num t7)) (Fn t7 t7))')
+        self.assertEqual(expected, function.t)
+
+    def test_let_binding_with_multiple_instantiations(self):
+        text = '''
+(fn use-id (x)
+  (let ((id (\ (n) n)))
+    ((id id) x)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(Fn t6 t6)')
+        self.assertEqual(expected, function.t)
+
+    def test_let_binding_with_predicates_and_multiple_instantiations(self):
+        text = '''
+(fn use-to-str ()
+  (let ((to-str (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(Fn String)')
         self.assertEqual(expected, function.t)
 
     def test_let_binding_with_deferred_predicates(self):
