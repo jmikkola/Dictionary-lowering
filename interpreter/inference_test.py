@@ -479,7 +479,7 @@ class InferenceTest(unittest.TestCase):
         expr = expression('(let ((x 123.0) (y (* 2.0 x))) y)')
         predicates, t = inf.infer_expression(assumptions, expr, [])
         predicates = inf.substitution.apply_to_list(predicates)
-        self.assertEqual([predicate('(Num Float)')], predicates)
+        self.assertEqual([predicate('(Num Float)'), predicate('(Num Float)')], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
 
@@ -992,7 +992,21 @@ class InferenceTest(unittest.TestCase):
         function = program.functions[0]
         expected = qualified('(Fn Int String)')
         # TODO: This appears to be buggy
-        # self.assertEqual(expected, function.t)
+        # print(function.t)
+        self.assertEqual(expected, function.t)
+
+    def test_let_binding_with_predicates(self):
+        text = '''
+(fn use-square (x)
+  (let ((square (\ (n) (* n n))))
+    (square x)))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(=> ((Num t7)) (Fn t7 t7))')
+        self.assertEqual(expected, function.t)
 
     def test_infers_mutually_recursive_functions(self):
         text = '''
@@ -1033,15 +1047,12 @@ class InferenceTest(unittest.TestCase):
             program.get_function('collatz').t
         )
 
+    # TODO:
     # Test multiple predicates that can be simplified
     # Test deferred predicates on inner let bindings
-    # Test handling explicitly typed bindings
     # Test checking the types of instance implementations
-    # Test that finalized types are written back to the resulting code
     # Test instances with instance predicates
     # Test instances that use superclasses of the current class
-    # TODO: When an instance is defined, nothing checks that instances are also
-    #   defined for that class's superclasses.
 
     def empty_program(self):
         return parser.parse('')

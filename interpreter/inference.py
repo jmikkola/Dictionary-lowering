@@ -583,7 +583,12 @@ class Inference:
             # generalize them.
 
             inner_assumptions = assumptions.make_child({
-                name: self.quantify(free_vars, t)
+                # TODO: this needs the free type vars limited to those not free in the env
+                # TODO: this needs the predicates split first
+                name: types.Scheme.quantify(
+                    t.free_type_vars(),
+                    types.Qualified(predicates, t)
+                )
                 for (name, t) in binding_types.items()
             })
 
