@@ -125,6 +125,12 @@ class LoweringInput:
 
 (instance (Show String)
   (fn show (s) s))
+
+(class (Integral a) superclasses (Num)
+  (:: % (Fn a a a)))
+
+(instance (Integral Int)
+  (fn % (a b) (%:Int a b)))
 '''
 
         parsed = parser.parse(text)
@@ -145,6 +151,8 @@ class LoweringInput:
             for op in operators:
                 name = op + ':' + t
                 self.builtin_functions.add(name)
+
+        self.builtin_functions.add('%:Int')
 
 
     def lower(self):
@@ -760,6 +768,8 @@ class Context:
     def _find_super(self, in_scope_p, predicate, expr):
         ''' See if `predicate` matches any superclass of `in_scope_p` '''
         class_def = self.get_class_def(in_scope_p.tclass)
+        if class_def is None:
+            raise RuntimeError(f'expected to have a definition for the class {in_scope_p.tclass}')
         super_classes = class_def.supers
 
         for super_class in super_classes:
