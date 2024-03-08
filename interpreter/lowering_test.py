@@ -4,6 +4,7 @@ from interpreter import inference
 from interpreter import lowering
 from interpreter import parser
 from interpreter import syntax
+from interpreter import types
 from interpreter.program import Program
 
 
@@ -168,38 +169,40 @@ class TestLowering(unittest.TestCase):
         self.assert_lowers(input_text, output_text)
 
     def test_lowering_returned_lambda_function_using_predicates(self):
-        text = '''
+        input_text = '''
 (fn return-lambda (unused)
   (\ (x) (show x)))
 '''
+        output_text = '''
+(fn return-lambda
+  (dict_Show_t4 unused)
+  (Fn (ShowMethods t4) t2 (Fn t4 String))
+  (:: (\ (x)
+         (:: ((:: (. (:: dict_Show_t4 (ShowMethods t4)) show)
+                  (Fn t4 String))
+              (:: x t4))
+             String))
+      (Fn t4 String)))
+'''
 
-        # TODO: the dictionary arg should get added to return-lambda;
-        # return values of functions aren't polymorphic after they are returned
-
-        # TODO: create a assert_lowers_with_inference helper
+        self.assert_lowers_with_inference(input_text, output_text)
 
     def test_lowering_let_binding_with_predicates_and_multiple_instantiations(self):
-        text = '''
+        input_text = '''
 (fn use-to-str ()
   (let ((to-str (\ (n) (show n))))
     (concat (to-str true) (to-str ""))))
 '''
-        # Infer types for this
-        program = inference.infer_types(parser.parse(text))
-        print(show_result(program))
-
-        # Lower it
-        lowered = lowering.LoweringInput(program).lower()
 
         output_text = '''
 (fn use-to-str ()
-  (=> () (Fn String))
-  (:: (let ((to-str (:: (\ (dict_Show_n n)
-                           (:: ((:: (. (:: dict_Show_n (ShowMethods t4)) show)
+  (Fn String)
+  (:: (let ((to-str (:: (\ (dict_Show_t4 n)
+                           (:: ((:: (. (:: dict_Show_t4 (ShowMethods t4)) show)
                                     (Fn t4 String))
                                 (:: n t4))
                                String))
-                        (Fn t4 String))))
+                        (Fn (ShowMethods t4) t4 String))))
          (:: ((:: concat (Fn String String String))
               (:: ((:: to-str (Fn (ShowMethods Bool) Bool String))
                    (:: ((:: make__ShowMethods__Bool (Fn (ShowMethods Bool))))
@@ -214,8 +217,8 @@ class TestLowering(unittest.TestCase):
              String))
       String))
 '''
-        output = parser.parse(output_text)
-        self.assert_programs_equal(expected=output, result=lowered)
+
+        self.assert_lowers_with_inference(input_text, output_text)
 
     def test_lowering_lambda_expression(self):
         input_text = '''
@@ -807,6 +810,13 @@ class TestLowering(unittest.TestCase):
         self.assert_lowers(input_text, output_text)
         self.assert_lowers(output_text, output_text)
 
+    def assert_lowers_with_inference(self, input_text, output_text):
+        program = inference.infer_types(parser.parse(input_text))
+        lowered = lowering.LoweringInput(program).lower()
+
+        output = parser.parse(output_text)
+        self.assert_programs_equal(expected=output, result=lowered)
+
     def assert_lowers(self, input_text, output_text):
         lowering_input = make_lowering_input(input_text)
         expected = parse_output(output_text)
@@ -816,8 +826,18 @@ class TestLowering(unittest.TestCase):
         self.assert_programs_equal(expected, result)
 
     def assert_programs_equal(self, expected, result):
+        # Hack to make them print the same
+        for f in expected.functions:
+            if isinstance(f.t, types.Qualified):
+                self.assertEqual([], f.t.predicates)
+                f.t = f.t.t
+
         expected_str = show_result(expected)
         result_str = show_result(result)
+        result_without_builtins = parse_output(result_str)
+
+        result_without_builtins.from_stage = 'test'
+        expected.from_stage = 'test'
 
         if expected_str != result_str:
             message_lines = [
@@ -830,12 +850,13 @@ class TestLowering(unittest.TestCase):
             ]
         else:
             message_lines = [
-                'expected matches result:',
+                'Programs do not compare as equal but string values match:',
                 expected_str,
             ]
+            if repr(expected) != repr(result_without_builtins):
+                message_lines.append('reprs are not equal')
         message = '\n' + '\n'.join(message_lines)
 
-        result_without_builtins = parse_output(result_str)
         self.assertEqual(expected, result_without_builtins, message)
 
 

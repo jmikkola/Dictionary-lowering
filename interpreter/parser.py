@@ -399,6 +399,9 @@ def _parse_let_bindings(sexprs):
     bindings = []
     for sexpr in sexprs:
         assert(isinstance(sexpr, list))
+        if len(sexpr) != 2:
+            print('not of length 2', syntax.render_lisp(sexpr))
+            print('actually of length', len(sexpr))
         assert(len(sexpr) == 2)
         name = sexpr[0]
         value = _parse_expression(sexpr[1])

@@ -68,9 +68,10 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 The next steps are:
 
 - [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
-    - Retain predicates for let bindings of functions
     - Precompute the schemes for struct construction and destruction
     - Write the other tests in inference_test.py
+    - Apply the monomorphism restriction to let bindings of non-function types
+    - Add parsing/writing ability for explicitly-typed let bindings
 - Add enum/tagged union types (e.g. Some(x) | None)
 
 Things that would be nice to add:

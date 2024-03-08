@@ -573,7 +573,7 @@ class Inference:
 
             # Find what type variables are in all the binding's types
             binding_tvars = functools.reduce(
-                lambda vars1, vars2: vars1 & vars2,
+                lambda vars1, vars2: vars1 & vars2,  # type: ignore
                 (t.free_type_vars() for t in binding_types.values())
             )
 
@@ -961,7 +961,7 @@ class Assumptions:
     def make_child(self, assumptions=None):
         return Assumptions(assumptions=assumptions, parent=self)
 
-    def free_type_vars(self):
+    def free_type_vars(self) -> set:
         tvars = set()
         for scheme in self.assumptions.values():
             tvars |= scheme.free_type_vars()

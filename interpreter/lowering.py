@@ -35,6 +35,7 @@ from interpreter.types import (
     Type, Substitution, TClass, TypeError,
     Predicate, TConstructor, TApplication, TVariable,
     match, make_function_type, require_function_type,
+    Qualified,
 )
 
 from interpreter.program import Program
@@ -118,6 +119,12 @@ class LoweringInput:
   (fn <= (x y) (<=:Float x y))
   (fn >  (x y) (>:Float x y))
   (fn >= (x y) (>=:Float x y)))
+
+(instance (Show Bool)
+  (fn show (b) (if b "true" "false")))
+
+(instance (Show String)
+  (fn show (s) s))
 '''
 
         parsed = parser.parse(text)
@@ -392,11 +399,13 @@ class LoweringInput:
             # (bindings are allowed to refer to each other)
             binding_names = [b.name for b in expression.bindings]
             binding_predicates = [p for b in expression.bindings for p in b.get_predicates()]
+
             lambda_context = context.for_method(binding_names, binding_predicates)
+            for binding in expression.bindings:
+                lambda_context.set_local_type(binding.name, binding.t)
 
             bindings = [
-                # TODO: Give special treatment for b.value if it is a lambda
-                Binding(b.name, self._lower_expression(lambda_context, b.value))
+                self._lower_let_binding(lambda_context, b)
                 for b in expression.bindings
             ]
             inner = self._lower_expression(lambda_context, expression.inner)
@@ -431,11 +440,14 @@ class LoweringInput:
             name = expression.name
             # The variable might reference something with class constraints.
             if context.is_local(name):
-                # If it's a local variable, leave it unchanged.
-                # TODO: This is incorrect if a local let binding is allowed to
-                # have class constrains (which they are in Haskell). Fixing
-                # this will require adding a Qualified to let bindings.
-                return expression
+                qualified = context.get_local_type(name)
+                if qualified is not None:
+                    # Variable comes from a let binding and potentially can
+                    # take dictionary arguments
+                    return self._rewrite_static_reference(context, qualified, expression)
+                else:
+                    # Variable comes from an argument and can't take dictionary arguments
+                    return expression
 
             if name in self.builtin_functions:
                 return expression
@@ -444,7 +456,7 @@ class LoweringInput:
             if declaration is not None:
                 # Handle references to other functions
                 # (these need dictionaries to be passed)
-                return self._rewrite_static_reference(context, declaration, expression)
+                return self._rewrite_static_reference(context, declaration.t, expression)
 
             method = context.find_class_method(name)
             if method is not None:
@@ -456,7 +468,36 @@ class LoweringInput:
 
         raise NotImplementedError(f'_lower_expression should handle {repr(expression)}')
 
-    def _rewrite_static_reference(self, context, declaration: DFunction, expression: EVariable):
+    def _lower_let_binding(self, context, binding: Binding):
+        value = binding.value
+        if isinstance(value, ELambda) and binding.t is not None:
+            # Potentially add dictionary variables to the bound lambda function
+            qualified = binding.t
+
+            decl_type = self._predicates_to_arg_types(qualified)
+
+            new_arg_names = [_predicate_to_arg_name(p) for p in qualified.predicates]
+
+            lambda_context = context.for_method(
+                value.arg_names,
+                qualified.predicates
+            )
+
+            body = self._lower_expression(lambda_context, value.body)
+
+            lowered = ELambda(
+                t=decl_type,
+                arg_names=new_arg_names + value.arg_names,
+                body=body
+            )  # type: Expression
+            t = decl_type
+        else:
+            lowered = self._lower_expression(context, value)
+            t = binding.t
+
+        return Binding(binding.name, lowered, t=t)
+
+    def _rewrite_static_reference(self, context, qualified: Qualified, expression: EVariable):
         ''' Rewrite static references to other functions.
 
         If the function `foo` takes has a predicate `(Show a)`, this would
@@ -464,7 +505,6 @@ class LoweringInput:
         `(foo make__Show())`
         '''
 
-        qualified = declaration.t
         try:
             # Find out how the function's type was instantiated here
             substitution = match(qualified.t, expression.get_type())
@@ -557,13 +597,15 @@ class Context:
     ''' Internal data used during the lowering process '''
 
     # local_vars: list[str]
+    # local_types: dict[str, Qualified]
     # dict_preds: dict[str, Predicate] (str is the name of the dictionary)
     # scope: dict[str, Declaration] (top-level function declarations)
     # methods: dict[str, tuple[TClass, Qualified]] (methods that appear in classes)
     # instances: list[InstanceDef]
     # classes: list[ClassDef]
-    def __init__(self, local_vars, dict_preds, scope, methods, instances, classes):
+    def __init__(self, local_vars, local_types, dict_preds, scope, methods, instances, classes):
         self.local_vars = local_vars
+        self.local_types = local_types
         self.dict_preds = dict_preds
         self.scope = scope
         self.methods = methods
@@ -587,6 +629,7 @@ class Context:
 
         return Context(
             local_vars=locals,
+            local_types={},
             dict_preds={},
             scope=scope,
             methods=methods,
@@ -597,6 +640,8 @@ class Context:
     def for_method(self, arg_names, predicates):
         new_locals = arg_names + self.local_vars
 
+        new_local_types = {**self.local_types}
+
         new_dict_preds = {**self.dict_preds}
         for pred in predicates:
             name = _predicate_to_arg_name(pred)
@@ -604,6 +649,7 @@ class Context:
 
         return Context(
             local_vars=new_locals,
+            local_types=new_local_types,
             dict_preds=new_dict_preds,
             scope=self.scope,
             methods=self.methods,
@@ -618,6 +664,13 @@ class Context:
 
     def is_local(self, var_name: str):
         return var_name in self.local_vars
+
+    def get_local_type(self, var_name: str):
+        # This will return None if var_name refers to an argument
+        return self.local_types.get(var_name)
+
+    def set_local_type(self, var_name: str, qualified: Qualified):
+        self.local_types[var_name] = qualified
 
     def get_from_scope(self, var_name: str):
         ''' returns Declaration or None '''

@@ -300,21 +300,26 @@ class EAccess(Expression):
 
 
 class Binding:
-    def __init__(self, name: str, value: Expression):
+    def __init__(self, name: str, value: Expression, t=None):
         self.name = name
         self.value = value
         # this type can't be explicitly set in the syntax, but is used to store
         # results from type inference
-        self.t = None
+        self.t = t
 
     def __str__(self):
         return f'{self.name} = {self.value}'
 
     def __repr__(self):
-        return f'Binding({repr(self.name)}, {repr(self.value)})'
+        return f'Binding({repr(self.name)}, {repr(self.value)}, {repr(self.t)})'
 
     def __eq__(self, o):
-        return isinstance(o, Binding) and o.name == self.name and o.value == self.value
+        return (
+            isinstance(o, Binding) and
+            o.name == self.name and
+            o.value == self.value and
+            o.t == self.t
+        )
 
     def to_lisp(self):
         return [self.name, self.value.to_lisp()]
