@@ -1085,9 +1085,20 @@ class InferenceTest(unittest.TestCase):
             program.get_function('collatz').t
         )
 
+    def test_function_with_simplifyable_predicates(self):
+        text = '''
+(fn f (a b)
+  (if (== a b) (show a) (show (* 2 (% a b)))))
+'''
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Integral a)) (Fn a a String))'),
+            program.get_function('f').t
+        )
+
     # TODO:
-    # Test multiple predicates that can be simplified
-    # Test deferred predicates on inner let bindings
     # Test checking the types of instance implementations
     # Test instances with instance predicates
     # Test instances that use superclasses of the current class
