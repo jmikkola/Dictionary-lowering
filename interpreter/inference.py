@@ -874,12 +874,6 @@ class Inference:
         fresh_types = [self.next_type_var() for _ in range(scheme.n_vars)]
         return scheme.instantiate(fresh_types)
 
-    def quantify(self, tvars, t: types.Type) -> types.Scheme:
-        return types.Scheme.quantify(
-            tvars,
-            types.Qualified([], t)
-        )
-
     def unify_types(self, t1: types.Type, t2: types.Type):
         ''' Updates the substitution to make the types equal '''
         sub = types.most_general_unifier(
