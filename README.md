@@ -71,7 +71,8 @@ The next steps are:
     - Precompute the schemes for struct construction and destruction
     - Write the other tests in inference_test.py
     - Apply the monomorphism restriction to let bindings of non-function types
-    - Add parsing/writing ability for explicitly-typed let bindings
+    - Add parsing/writing ability for explicitly-typed let bindings (and then read those types in
+      type inference)
 - Add enum/tagged union types (e.g. Some(x) | None)
 
 Things that would be nice to add:

@@ -1068,20 +1068,20 @@ class InferenceTest(unittest.TestCase):
         program = parser.parse(text)
         program = inference.infer_types(program)
 
-        self.assertEqual(
-            qualified('(=> ((Show t4)) (Fn t4 String String))'),
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Show a)) (Fn a String String))'),
             program.get_function('add-num').t
         )
-        self.assertEqual(
-            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Integral a)) (Fn a String))'),
             program.get_function('odd').t
         )
-        self.assertEqual(
-            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Integral a)) (Fn a String))'),
             program.get_function('even').t
         )
-        self.assertEqual(
-            qualified('(=> ((Integral t30)) (Fn t30 String))'),
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Integral a)) (Fn a String))'),
             program.get_function('collatz').t
         )
 
@@ -1095,6 +1095,15 @@ class InferenceTest(unittest.TestCase):
     def empty_program(self):
         return parser.parse('')
 
+    def assert_qualifieds_equal(self, expected, actual):
+        # Make sure the expected type can be matched to the actual
+        sub = types.match(expected.t, actual.t)
+        # also make sure the actual can be matched to the expected type
+        # to ensure that the expected type isn't more general
+        types.match(actual.t, expected.t)
+
+        # Check that they are equal now to ensure that the predicates match
+        self.assertEqual(expected.apply(sub), actual)
 
 def predicate(text):
     return parser._parse_predicate(parser._parse_one_list(text))

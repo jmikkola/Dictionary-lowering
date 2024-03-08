@@ -416,6 +416,8 @@ def match(l: Type, r: Type) -> Substitution:
 
     Raises a TypeError if matching the types fails
     '''
+    assert(isinstance(l, Type))
+    assert(isinstance(r, Type))
 
     if isinstance(l, TApplication) and isinstance(r, TApplication):
         if len(l.args) == len(r.args):
