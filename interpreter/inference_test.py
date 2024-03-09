@@ -657,8 +657,8 @@ class InferenceTest(unittest.TestCase):
         f = program.functions[0]
         qt = f.t.apply(inf.substitution)
 
-        expected = qualified('(=> ((Ord t1)) (Fn t1 t1 Bool))')
-        self.assertEqual(expected, qt)
+        expected = qualified('(=> ((Ord t)) (Fn t t Bool))')
+        self.assert_qualifieds_equal(expected, qt)
 
     def test_explicit_typed_function_too_general_type_sig(self):
         text = '''
@@ -720,6 +720,61 @@ class InferenceTest(unittest.TestCase):
 
         with self.assertRaises(types.TypeError):
             inf.infer()
+
+    def test_checks_type_of_instance_with_predicates(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (Show_ a)
+  (:: show_ (Fn a String)))
+
+(instance (=> ((Show_ ta) (Show_ tb)) (Show_ (Pair ta tb)))
+  (fn show_ (pair)
+    (concat (show_ (. pair a)) (concat ", " (show_ (. pair b))))))
+'''
+        inf = inference.Inference(parser.parse(text))
+        inf.infer()
+
+    def test_show_pair(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(class (Show_ a)
+  (:: show_ (Fn a String)))
+
+(fn my_show (pair)
+  (=> ((Show_ ta) (Show_ tb)) (Fn (Pair ta tb) String))
+  (concat (show_ (. pair a)) (concat ", " (show_ (. pair b)))))
+'''
+        inf = inference.Inference(parser.parse(text))
+        program = inf.infer()
+
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Show_ ta) (Show_ tb)) (Fn (Pair ta tb) String))'),
+            program.get_function('my_show').t
+        )
+
+    def test_pair_access(self):
+        text = '''
+(struct (Pair a b)
+  (:: a a)
+  (:: b b))
+
+(fn get_a (pair)
+  (Fn (Pair ta tb) ta)
+  (. pair a))
+'''
+        inf = inference.Inference(parser.parse(text))
+        program = inf.infer()
+
+        self.assert_qualifieds_equal(
+            qualified('(Fn (Pair x y) x)'),
+            program.get_function('get_a').t
+        )
 
     def test_sets_types_of_expressions_in_explititly_typed_fn(self):
         text = '''
@@ -1099,7 +1154,6 @@ class InferenceTest(unittest.TestCase):
         )
 
     # TODO:
-    # Test checking the types of instance implementations
     # Test instances with instance predicates
     # Test instances that use superclasses of the current class
 

@@ -14,6 +14,9 @@ class TypeVariable:
     def __eq__(self, o):
         return isinstance(o, TypeVariable) and o.name == self.name
 
+    def __lt__(self, o):
+        return self.name < o.name
+
     def __hash__(self):
         return hash(('TypeVariable', self.name))
 
@@ -21,8 +24,72 @@ class TypeVariable:
         return str(self)
 
 
+class FreeTypeVariables:
+    ''' Keeps the type variables listed in the order they were first seen.
+
+    That's important so that two types like (Pair a b) and (Pair d c) generalize
+    the same way. '''
+
+    def __init__(self, var_list=None):
+        self.var_list = var_list or []
+        self.var_set = set(self.var_list)
+
+    @classmethod
+    def singleton(cls, tv):
+        assert(isinstance(tv, TypeVariable))
+        return cls(var_list=[tv])
+
+    def __str__(self):
+        return str(self.var_list)
+
+    def __repr__(self):
+        return f'FreeTypeVariables({repr(self.var_list)})'
+
+    def __contains__(self, key):
+        assert(isinstance(key, TypeVariable))
+        return key in self.var_set
+
+    def __or__(self, other):
+        assert(isinstance(other, FreeTypeVariables))
+
+        # Keep only new variables from the other list
+        filtered_other_vars = [
+            var for var in other.var_list
+            if var not in self.var_set
+        ]
+        combined_list = self.var_list + filtered_other_vars
+
+        return FreeTypeVariables(combined_list)
+
+    def __and__(self, other):
+        assert(isinstance(other, FreeTypeVariables))
+
+        in_both_lists = [
+            var for var in self.var_list
+            if var in other.var_set
+        ]
+
+        return FreeTypeVariables(in_both_lists)
+
+    def __sub__(self, other):
+        assert(isinstance(other, FreeTypeVariables))
+
+        remaining_vars = [
+            var for var in self.var_list
+            if var not in other.var_set
+        ]
+
+        return FreeTypeVariables(remaining_vars)
+
+    def __iter__(self):
+        return iter(self.var_list)
+
+    def issubset(self, other):
+        return self.var_set.issubset(other.var_set)
+
+
 class Type:
-    def free_type_vars(self) -> set:
+    def free_type_vars(self) -> FreeTypeVariables:
         raise NotImplementedError
 
     def apply(self, substitution):
@@ -46,8 +113,8 @@ class TVariable(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self) -> set:
-        return set([self.type_variable])
+    def free_type_vars(self) -> FreeTypeVariables:
+        return FreeTypeVariables.singleton(self.type_variable)
 
     @classmethod
     def from_varname(cls, name):
@@ -79,8 +146,8 @@ class TGeneric(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self) -> set:
-        return set()
+    def free_type_vars(self) -> FreeTypeVariables:
+        return FreeTypeVariables()
 
     def apply(self, substitution):
         replacement = substitution.get(self)
@@ -105,8 +172,8 @@ class TConstructor(Type):
     def to_lisp(self):
         return str(self)
 
-    def free_type_vars(self) -> set:
-        return set()
+    def free_type_vars(self) -> FreeTypeVariables:
+        return FreeTypeVariables()
 
     def apply(self, substitution):
         return self
@@ -136,7 +203,7 @@ class TApplication(Type):
         lisp += [a.to_lisp() for a in self.args]
         return lisp
 
-    def free_type_vars(self) -> set:
+    def free_type_vars(self) -> FreeTypeVariables:
         ftvs = self.t.free_type_vars()
         for a in self.args:
             ftvs |= a.free_type_vars()
@@ -230,7 +297,7 @@ class Qualified:
     def unqualify(self):
         return self.t
 
-    def free_type_vars(self) -> set:
+    def free_type_vars(self) -> FreeTypeVariables:
         ftvs = self.t.free_type_vars()
         for p in self.predicates:
             ftvs |= p.t.free_type_vars()
@@ -259,7 +326,7 @@ class Scheme:
     def to_lisp(self):
         return ['*generic*', str(self.n_vars), self.qualified.to_lisp()]
 
-    def free_type_vars(self) -> set:
+    def free_type_vars(self) -> FreeTypeVariables:
         return self.qualified.free_type_vars()
 
     def apply(self, substitution):
@@ -456,9 +523,13 @@ def require_function_type(t: Type):
     return (t.args[:-1], t.args[-1])
 
 
-def num_args(t: Type) -> int:
+def get_arg_types(t: Type) -> list:
     args, _ret = require_function_type(t)
-    return len(args)
+    return args
+
+
+def num_args(t: Type) -> int:
+    return len(get_arg_types(t))
 
 
 def require_type_constructor(t: Type):

@@ -144,7 +144,8 @@ class Inference:
 
         # Check that the types of explicitly typed functions are valid
         for f in explicit_typed:
-            preds = self.infer_explicit(assumptions, f)
+            scheme = assumptions.get_scheme(f.name)
+            preds = self.infer_explicit(assumptions, f, scheme)
             predicates.extend(preds)
 
         # Finally, check the types of types in instances
@@ -262,27 +263,30 @@ class Inference:
 
         return deferred, function_schemes
 
-    def infer_explicit(self, assumptions, function):
+    def infer_explicit(self, assumptions, function, scheme):
         ''' Infers the type of the given explicitly-typed function. '''
         assert(isinstance(assumptions, Assumptions))
         assert(isinstance(function, syntax.DFunction))
 
         # The scheme for function should have been already written to the assumptions
-        scheme = assumptions.get_scheme(function.name)
         function_type = self.instantiate(scheme)
 
         # Inferring the body of the function adds the expressions it sees to this list
         expressions = []
 
-        predicates, inferred_type = self.infer_function(assumptions, function, expressions)
+        predicates, inferred_type = self.infer_function(
+            assumptions,
+            function,
+            expressions,
+            given_type=function_type.t
+        )
         self.unify_types(inferred_type, function_type.t)
-
 
         function_type = function_type.apply(self.substitution)
 
         # Find the type variables that are used only in the function's type
         binding_tvars = assumptions.apply(self.substitution).free_type_vars()
-        function_tvars = function_type.t.free_type_vars() - binding_tvars
+        function_tvars = function_type.free_type_vars() - binding_tvars
 
         # Create a new scheme from what inference learned about the function's type
         updated_scheme = types.Scheme.quantify(function_tvars, function_type)
@@ -290,7 +294,10 @@ class Inference:
         # This would happen if any of the type variables in the user-defined type
         # got replaced with a concrete type.
         if updated_scheme != scheme:
-            raise types.TypeError(f'Type signature too general for {function.name}')
+            raise types.TypeError(
+                f'Type signature too general for {function.name},' +
+                f' expected scheme {scheme} actual scheme {updated_scheme}'
+            )
 
         predicates = self.substitution.apply_to_list(predicates)
 
@@ -311,19 +318,31 @@ class Inference:
 
         return deferred
 
-    def infer_function(self, assumptions, function, expressions):
-        arg_tvars = {
-            arg: self.next_type_var()
-            for arg in function.arg_names
-        }
+    def infer_function(self, assumptions, function, expressions, given_type=None):
+        if given_type is not None:
+            assert(isinstance(given_type, types.Type))
+            # For functions with explicit types, update the types of the
+            # arguments. This is mainly useful so that accessing fields in
+            # structs get the type information it needs.
+            arg_types = {
+                arg: t
+                for (arg, t) in zip(function.arg_names, types.get_arg_types(given_type))
+            }
+        else:
+            arg_types = {
+                arg: self.next_type_var()
+                for arg in function.arg_names
+            }
+
+
         function_assumptions = assumptions.make_child({
             arg: types.Scheme.to_scheme(tvar)
-            for (arg, tvar) in arg_tvars.items()
+            for (arg, tvar) in arg_types.items()
         })
 
         predicates, body_type = self.infer_expression(function_assumptions, function.body, expressions)
         function_type = types.make_function_type(
-            [arg_tvars[arg] for arg in function.arg_names],
+            [arg_types[arg] for arg in function.arg_names],
             body_type
         )
 
@@ -371,12 +390,13 @@ class Inference:
                     method_qual
                 )
 
-                # Turn this into a (temporary!) assumption about the instance method's type
-                temp_assumptions = assumptions.make_child({
-                    method_impl.name: method_scheme
-                })
+                # Unlike explicitly-typed bindings, instance method types
+                # aren't added to the assumptions at this point because the
+                # assumption for the method already exists (due to processing
+                # the class). Adding it here would set it to a more specific
+                # type, hiding the more general type coming from the class.
 
-                self.infer_explicit(temp_assumptions, method_impl)
+                self.infer_explicit(assumptions, method_impl, method_scheme)
 
         return instances
 
@@ -640,8 +660,6 @@ class Inference:
     def split(self, context_tvars, binding_tvars, predicates):
         predicates = self.reduce(predicates)
 
-        context_tvar_set = set(context_tvars)
-
         deferred = []
         retained = []
 
@@ -649,7 +667,7 @@ class Inference:
             assert(isinstance(predicate, types.Predicate))
             pred_tvars = predicate.t.free_type_vars()
             # check if all type varibles in the predicate are from the context:
-            if pred_tvars.issubset(context_tvar_set):
+            if pred_tvars.issubset(context_tvars):
                 deferred.append(predicate)
             else:
                 retained.append(predicate)
@@ -955,8 +973,8 @@ class Assumptions:
     def make_child(self, assumptions=None):
         return Assumptions(assumptions=assumptions, parent=self)
 
-    def free_type_vars(self) -> set:
-        tvars = set()
+    def free_type_vars(self) -> types.FreeTypeVariables:
+        tvars = types.FreeTypeVariables()
         for scheme in self.assumptions.values():
             tvars |= scheme.free_type_vars()
         if self.parent is not None:
