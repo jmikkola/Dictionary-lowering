@@ -73,7 +73,10 @@ The next steps are:
     - Apply the monomorphism restriction to let bindings of non-function types
     - Add parsing/writing ability for explicitly-typed let bindings (and then read those types in
       type inference)
+- Write brief documentation explaining how the language works
 - Add enum/tagged union types (e.g. Some(x) | None)
+- Add an actual list type
+- Add enough built-in functions to make this usable (e.g. file IO, sockets, processes)
 
 Things that would be nice to add:
 
