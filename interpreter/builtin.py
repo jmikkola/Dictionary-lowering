@@ -126,6 +126,27 @@ INSTANCE_DEFINITIONS = '''
   (fn % (a b) (%:Int a b)))
 '''
 
+
+_classes = None
+_instances = None
+
+
+def get_classes():
+    global _classes
+
+    if _classes is None:
+        _classes = parser.parse(CLASS_DEFINITIONS, is_builtin=True).classes
+    return _classes
+
+
+def get_instances():
+    global _instances
+
+    if _instances is None:
+        _instances = parser.parse(INSTANCE_DEFINITIONS, is_builtin=True).instances
+    return _instances
+
+
 FUNCTION_TYPES = [
     ('str', '(Fn a String)'),
     ('inc', '(Fn Int Int)'),

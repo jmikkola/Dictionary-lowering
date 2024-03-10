@@ -61,18 +61,11 @@ class LoweringInput:
         self._add_builtins()
 
     def _add_builtins(self):
-        # Mark these as builtin so that the code derrived from it doesn't have to get dumped
-        parsed = parser.parse(
-            builtin.CLASS_DEFINITIONS + builtin.INSTANCE_DEFINITIONS,
-            is_builtin=True
-        )
-
-        self.classes.extend(parsed.classes)
-        self.instances.extend(parsed.instances)
+        self.classes.extend(builtin.get_classes())
+        self.instances.extend(builtin.get_instances())
 
         for name in builtin.get_function_types():
             self.builtin_functions.add(name)
-
 
     def lower(self):
         ''' returns a Program containing the results '''
