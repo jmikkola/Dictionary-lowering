@@ -21,7 +21,6 @@ This package assumes a few things about the input code:
 import typing
 
 from interpreter import builtin
-from interpreter import parser
 
 from interpreter.syntax import (
     DFunction, InstanceDef, StructDef,

@@ -71,9 +71,15 @@ class InferenceTest(unittest.TestCase):
         t_int = types.TConstructor('Int')
         t_float = types.TConstructor('Float')
 
-        inf.add_class('MyClass', [])
-        inf._add_simple_instance('MyClass', 'Int')
-        inf._add_simple_instance('MyClass', 'Float')
+        class_and_instances = '''
+(class (MyClass c))
+(instance (MyClass Int))
+(instance (MyClass Float))
+'''
+        p = parser.parse(class_and_instances)
+
+        inf.add_classes(p.classes)
+        inf.add_instances(p.instances)
 
         # Num has candidates
         candidates = inf.candidates(inference.Ambiguity(a, [num]))
@@ -567,10 +573,8 @@ class InferenceTest(unittest.TestCase):
         gen0 = types.TGeneric(0)
         p = types.Predicate(types.TClass('Next'), gen0)
         t = types.make_function_type([gen0], gen0)
-        expected = {
-            'next': types.Scheme(1, types.Qualified([p], t))
-        }
-        self.assertEqual(expected, assumptions)
+        scheme = types.Scheme(1, types.Qualified([p], t))
+        self.assertEqual(scheme, assumptions['next'])
 
         # Make use of those assumptions:
         expr = expression('(\ (x) (next x))')
@@ -1165,6 +1169,9 @@ class InferenceTest(unittest.TestCase):
 
         # Check that they are equal now to ensure that the predicates match
         self.assertEqual(expected.apply(sub), actual)
+
+    # TODO:
+    # - test implementation of a built-in class
 
 def predicate(text):
     return parser._parse_predicate(parser._parse_one_list(text))

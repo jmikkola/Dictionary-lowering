@@ -6,7 +6,6 @@ import functools
 
 from interpreter import builtin
 from interpreter import graph
-from interpreter import parser
 from interpreter import syntax
 from interpreter import types
 from interpreter.program import Program
@@ -24,6 +23,7 @@ class Inference:
         self.substitution = types.Substitution({})
 
         self.class_names = set()  # type: typing.Set[str]
+        self.class_definitions = []  # type: typing.List[syntax.ClassDef]
         self.supers_for_class = {}  # type: typing.Dict[str, typing.List[types.TClass]]
         self.instances = defaultdict(list)  # type: typing.Dict[str, typing.List[Instance]]
         self.builtin_assumptions = Assumptions()
@@ -32,50 +32,13 @@ class Inference:
 
         self.add_builtins()
 
+        self.add_classes(self.program.classes)
+        self.add_instances(self.program.instances)
+
     def add_builtins(self):
         # Add built-in classes. These aren't exactly Haskell's classes.
-        # TODO: Add actual ClassDef definitions of these classes so that implementations
-        # can use the type of the declared methods
-        self.add_class('Eq', [])
-        self.add_class('Ord', ['Eq'])
-        self.add_class('Show', [])
-        self.add_class('Read', [])
-        self.add_class('Num', ['Eq', 'Show'])
-        self.add_class('Integral', ['Num', 'Ord'])
-
-        # Add built-in instances
-        self._add_simple_instance('Eq', 'Int')
-        self._add_simple_instance('Eq', 'Float')
-        self._add_simple_instance('Eq', 'String')
-        self._add_simple_instance('Eq', 'Bool')
-        # (Eq a) => (Eq (List a))
-        self._parse_and_add_instance('(=> ((Eq a)) (Eq (List a)))')
-
-        self._add_simple_instance('Ord', 'Int')
-        self._add_simple_instance('Ord', 'Float')
-        self._add_simple_instance('Ord', 'String')
-        self._add_simple_instance('Ord', 'Bool')
-
-        self._add_simple_instance('Show', 'Int')
-        self._add_simple_instance('Show', 'Float')
-        self._add_simple_instance('Show', 'String')
-        self._add_simple_instance('Show', 'Bool')
-        self._parse_and_add_instance('(=> ((Show a)) (Show (List a)))')
-
-        self._add_simple_instance('Num', 'Int')
-        self._add_simple_instance('Num', 'Float')
-
-        self._add_simple_instance('Integral', 'Int')
-
-        for op in ['==', '!=']:
-            self._parse_and_add_assumption(op, '(=> ((Eq a)) (Fn a a Bool))')
-        for op in ['<', '>', '<=', '>=']:
-            self._parse_and_add_assumption(op, '(=> ((Ord a)) (Fn a a Bool))')
-        for op in ['+', '-', '*', '/']:
-            self._parse_and_add_assumption(op, '(=> ((Num a)) (Fn a a a))')
-        self._parse_and_add_assumption('show', '(=> ((Show a)) (Fn a String))')
-        self._parse_and_add_assumption('read', '(=> ((Read a)) (Fn String a))')
-        self._parse_and_add_assumption('%', '(=> ((Integral a)) (Fn a a a))')
+        self.add_classes(builtin.get_classes())
+        self.add_instances(builtin.get_instances())
 
         for name, qual_type in builtin.get_function_types().items():
             scheme = types.Scheme.quantify(qual_type.free_type_vars(), qual_type)
@@ -85,11 +48,8 @@ class Inference:
         for cls in classes:
             name = cls.class_name()
             self.class_names.add(name)
+            self.class_definitions.append(cls)
             self.supers_for_class[name] = cls.supers
-
-    def add_class(self, name: str, supers):
-        self.class_names.add(name)
-        self.supers_for_class[name] = [types.TClass(s) for s in supers]
 
     def add_instances(self, instances):
         for inst in instances:
@@ -101,25 +61,7 @@ class Inference:
             raise RuntimeError(f'No class definition for {class_name}')
         self.instances[class_name].append(inst)
 
-    def _add_simple_instance(self, class_name, constructor_name):
-        tclass = types.TClass(class_name)
-        t = types.TConstructor(constructor_name)
-        self.add_instance(class_name, Instance([], tclass, t))
-
-    def _parse_and_add_instance(self, text: str):
-        sexpr = parser._parse_lists(text)[0]
-        qual_pred = parser._parse_qualified_predicate(sexpr)
-        self.add_instance(qual_pred.t.tclass.name, Instance.from_qual_pred(qual_pred))
-
-    def _parse_and_add_assumption(self, name: str, qual_type_text: str):
-        sexpr = parser._parse_one_list(qual_type_text)
-        qual_type = parser._parse_qualified_type(sexpr)
-        scheme = types.Scheme.quantify(qual_type.free_type_vars(), qual_type)
-        self.builtin_assumptions.define(name, scheme)
-
     def infer(self):
-        self.add_classes(self.program.classes)
-        self.add_instances(self.program.instances)
 
         # Split bindings into explicitly typed and implicitly typed groups
         explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
@@ -180,7 +122,7 @@ class Inference:
             )
 
         # Class methods are another source of functions with known types
-        for cls in self.program.classes:
+        for cls in self.class_definitions:
             class_predicate = cls.get_class_predicate()
             for method in cls.methods:
                 method_qual = types.Qualified(

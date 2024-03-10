@@ -78,6 +78,7 @@ CLASS_DEFINITIONS = '''
 '''
 
 INSTANCE_DEFINITIONS = '''
+;; Int instances
 (instance (Show Int)
   (fn show (x) (show:Int x)))
 
@@ -97,6 +98,10 @@ INSTANCE_DEFINITIONS = '''
   (fn >  (x y) (>:Int x y))
   (fn >= (x y) (>=:Int x y)))
 
+(instance (Integral Int)
+  (fn % (a b) (%:Int a b)))
+
+;; Float instances
 (instance (Show Float)
   (fn show (x) (show:Float x)))
 
@@ -116,14 +121,41 @@ INSTANCE_DEFINITIONS = '''
   (fn >  (x y) (>:Float x y))
   (fn >= (x y) (>=:Float x y)))
 
+;; Bool instances
 (instance (Show Bool)
   (fn show (b) (if b "true" "false")))
 
+(instance (Eq Bool)
+  (fn == (a b) (==:Bool a b))
+  (fn != (a b) (not (==:Bool a b))))
+
+(instance (Ord Bool)
+  (fn <  (x y) (<:Bool x y))
+  (fn <= (x y) (<=:Bool x y))
+  (fn >  (x y) (>:Bool x y))
+  (fn >= (x y) (>=:Bool x y)))
+
+;; String instances
 (instance (Show String)
   (fn show (s) s))
 
-(instance (Integral Int)
-  (fn % (a b) (%:Int a b)))
+(instance (Eq String)
+  (fn == (a b) (==:String a b))
+  (fn != (a b) (not (==:String a b))))
+
+(instance (Ord String)
+  (fn <  (x y) (<:String x y))
+  (fn <= (x y) (<=:String x y))
+  (fn >  (x y) (>:String x y))
+  (fn >= (x y) (>=:String x y)))
+
+;; List instances
+(instance (=> ((Show a)) (Show (List a)))
+  (fn show (list) "not implemented"))
+
+(instance (=> ((Eq a)) (Eq (List a)))
+  (fn == (a b) false)
+  (fn != (a b) false))
 '''
 
 
