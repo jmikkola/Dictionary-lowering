@@ -1188,9 +1188,6 @@ class InferenceTest(unittest.TestCase):
         # Check that they are equal now to ensure that the predicates match
         self.assertEqual(expected.apply(sub), actual)
 
-    # TODO:
-    # - test implementation of a built-in class
-
 def predicate(text):
     return parser._parse_predicate(parser._parse_one_list(text))
 

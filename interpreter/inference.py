@@ -24,6 +24,8 @@ class Inference:
 
         self.class_definitions = {}  # type: typing.Dict[str, syntax.ClassDef]
         self.instances = defaultdict(list)  # type: typing.Dict[str, typing.List[Instance]]
+        self.struct_constructor_types = {}  # type: typing.Dict[str, types.Scheme]
+        self.struct_field_fn_types = defaultdict(dict)  # type: typing.Dict[str, typing.Dict[str, types.Scheme]]
         self.builtin_assumptions = Assumptions()
 
         self.default_types = [types.TConstructor('Int'), types.TConstructor('Float')]
@@ -32,6 +34,7 @@ class Inference:
 
         self.add_classes(self.program.classes)
         self.add_instances(self.program.instances)
+        self.add_struct_types(self.program.structs)
 
     def add_builtins(self):
         # Add built-in classes. These aren't exactly Haskell's classes.
@@ -55,6 +58,43 @@ class Inference:
         if class_name not in self.class_definitions:
             raise RuntimeError(f'No class definition for {class_name}')
         self.instances[class_name].append(inst)
+
+    def add_struct_types(self, structs):
+        for struct in structs:
+            self.add_struct_type(struct)
+
+    def add_struct_type(self, struct_def):
+        assert(isinstance(struct_def, syntax.StructDef))
+
+        struct_type = self.struct_def_to_type(struct_def)
+        field_types = struct_def.get_field_types()
+
+        struct_fn_type = types.make_function_type(field_types, struct_type)
+        scheme = types.Scheme.quantify(
+            struct_fn_type.free_type_vars(),
+            types.Qualified([], struct_fn_type)
+        )
+
+        self.struct_constructor_types[struct_def.name] = scheme
+
+        for (field_name, field_type) in struct_def.fields:
+            self.add_struct_field(struct_def.name, struct_type, field_name, field_type)
+
+    def add_struct_field(self, struct_name, struct_type, field_name, field_type):
+        # Field access is effectively like a function that takes the struct
+        # value as an argument and returns the value of a field. This code
+        # creates a type for that imaginary function to do the type
+        # operations on. This isn't necessary, it's just for convenience.
+        # E.g. (Fn (Pair a b) a).
+        field_fn_type = types.make_function_type([struct_type], field_type)
+
+        # Convert that type to a scheme, like (Fn (Pair $0 $1) $0)
+        scheme = types.Scheme.quantify(
+            field_fn_type.free_type_vars(),
+            types.Qualified([], field_fn_type)
+        )
+
+        self.struct_field_fn_types[struct_name][field_name] = scheme
 
     def infer(self):
         # Split bindings into explicitly typed and implicitly typed groups
@@ -403,8 +443,6 @@ class Inference:
             return (predicates, ret_type)
 
         elif isinstance(expr, syntax.EConstruct):
-            struct_def = self.get_struct_def(expr.struct_name)
-
             predicates = []
             arg_types = []
             for arg in expr.arg_exprs:
@@ -412,18 +450,12 @@ class Inference:
                 predicates.extend(ps)
                 arg_types.append(arg_t)
 
-            struct_type = self.struct_def_to_type(struct_def)
-            field_types = struct_def.get_field_types()
+            scheme = self.struct_constructor_types[expr.struct_name]
+            n_args = types.num_args(scheme.qualified.t)
 
-            if len(field_types) != len(arg_types):
-                raise types.TypeError(f'Struct {expr.struct_name} has {len(field_types)} fields but constructed with {len(arg_types)}')
+            if n_args != len(arg_types):
+                raise types.TypeError(f'Struct {expr.struct_name} has {n_args} fields but constructed with {len(arg_types)}')
 
-            # TODO: this type, plus the types of the field access "functions", could be precomputed
-            struct_fn_type = types.make_function_type(field_types, struct_type)
-            scheme = types.Scheme.quantify(
-                struct_fn_type.free_type_vars(),
-                types.Qualified([], struct_fn_type)
-            )
             # Instantiate that scheme to get a unique type for the type variables,
             # e.g. (Fn t1 t2 (Pair t1 t2))
             fresh_struct_fn_type = self.instantiate(scheme).t
@@ -454,28 +486,15 @@ class Inference:
             # complicated when other types (including other struct accesses)
             # depend on the type of this expression.
             struct_name = types.require_type_constructor(inner_t)
+            field_name = expr.field
 
-            # Look up the definition of the struct by name
-            struct_def = self.get_struct_def(struct_name)
+            field_fn_types = self.struct_field_fn_types[struct_name]
+
             # And look up the field within that struct being accessed
-            field_type = struct_def.find_field_type(expr.field)
-            if field_type is None:
-                raise types.TypeError(f'Struct {struct_name} does not have a field {expr.field}')
+            if field_name not in field_fn_types:
+                raise types.TypeError(f'Struct {struct_name} does not have a field {field_name}')
 
-            # Create a type like (Pair a b) out of the struct's definition
-            struct_type = self.struct_def_to_type(struct_def)
-            # Field access is effectively like a function that takes the struct
-            # value as an argument and returns the value of a field. This code
-            # creates a type for that imaginary function to do the type
-            # operations on. This isn't necessary, it's just for convenience.
-            # E.g. (Fn (Pair a b) a).
-            field_fn_type = types.make_function_type([struct_type], field_type)
-
-            # Convert that type to a scheme, like (Fn (Pair $0 $1) $0)
-            scheme = types.Scheme.quantify(
-                field_fn_type.free_type_vars(),
-                types.Qualified([], field_fn_type)
-            )
+            scheme = field_fn_types[field_name]
             # Instantiate that scheme to get a unique type for the type variables,
             # e.g. (Fn (Pair t10 t11) t10)
             fresh_field_fn_type = self.instantiate(scheme).t
