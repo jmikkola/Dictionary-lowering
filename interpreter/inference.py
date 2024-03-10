@@ -77,14 +77,8 @@ class Inference:
         self._parse_and_add_assumption('read', '(=> ((Read a)) (Fn String a))')
         self._parse_and_add_assumption('%', '(=> ((Integral a)) (Fn a a a))')
 
-        self._parse_and_add_assumption('str', '(Fn a String)')
-        self._parse_and_add_assumption('inc', '(Fn Int Int)')
-        self._parse_and_add_assumption('and', '(Fn Bool Bool Bool)')
-        self._parse_and_add_assumption('or', '(Fn Bool Bool Bool)')
-        self._parse_and_add_assumption('not', '(Fn Bool Bool)')
-        self._parse_and_add_assumption('print', '(Fn a Void)')
-        self._parse_and_add_assumption('concat', '(Fn String String String)')
-        self._parse_and_add_assumption('length', '(Fn String Int)')
+        for name, type_sig in builtin.FUNCTION_TYPES:
+            self._parse_and_add_assumption(name, type_sig)
 
     def add_classes(self, classes):
         for cls in classes:
