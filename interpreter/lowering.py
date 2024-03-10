@@ -61,80 +61,11 @@ class LoweringInput:
         self._add_builtins()
 
     def _add_builtins(self):
-        # TODO: Add all the other built-in classes
-        text = '''
-(class (Show a)
-  (:: show (Fn a String)))
-
-(class (Eq a)
-  (:: == (Fn a a Bool))
-  (:: != (Fn a a Bool)))
-
-(class (Ord a) superclasses (Eq)
-  (:: <  (Fn a a Bool))
-  (:: <= (Fn a a Bool))
-  (:: >  (Fn a a Bool))
-  (:: >= (Fn a a Bool)))
-
-(class (Num a) superclasses (Eq Show)
-  (:: + (Fn a a a))
-  (:: - (Fn a a a))
-  (:: * (Fn a a a))
-  (:: / (Fn a a a)))
-
-(instance (Show Int)
-  (fn show (x) (show:Int x)))
-
-(instance (Eq Int)
-  (fn == (x y) (==:Int x y))
-  (fn != (x y) (not (==:Int x y))))
-
-(instance (Num Int)
-  (fn + (x y) (+:Int x y))
-  (fn - (x y) (-:Int x y))
-  (fn * (x y) (*:Int x y))
-  (fn / (x y) (/:Int x y)))
-
-(instance (Ord Int)
-  (fn <  (x y) (<:Int x y))
-  (fn <= (x y) (<=:Int x y))
-  (fn >  (x y) (>:Int x y))
-  (fn >= (x y) (>=:Int x y)))
-
-(instance (Show Float)
-  (fn show (x) (show:Float x)))
-
-(instance (Eq Float)
-  (fn == (x y) (==:Float x y))
-  (fn != (x y) (not (==:Float x y))))
-
-(instance (Num Float)
-  (fn + (x y) (+:Float x y))
-  (fn - (x y) (-:Float x y))
-  (fn * (x y) (*:Float x y))
-  (fn / (x y) (/:Float x y)))
-
-(instance (Ord Float)
-  (fn <  (x y) (<:Float x y))
-  (fn <= (x y) (<=:Float x y))
-  (fn >  (x y) (>:Float x y))
-  (fn >= (x y) (>=:Float x y)))
-
-(instance (Show Bool)
-  (fn show (b) (if b "true" "false")))
-
-(instance (Show String)
-  (fn show (s) s))
-
-(class (Integral a) superclasses (Num)
-  (:: % (Fn a a a)))
-
-(instance (Integral Int)
-  (fn % (a b) (%:Int a b)))
-'''
-
         # Mark these as builtin so that the code derrived from it doesn't have to get dumped
-        parsed = parser.parse(text, is_builtin=True)
+        parsed = parser.parse(
+            builtin.CLASS_DEFINITIONS + builtin.INSTANCE_DEFINITIONS,
+            is_builtin=True
+        )
 
         self.classes.extend(parsed.classes)
         self.instances.extend(parsed.instances)
