@@ -77,8 +77,9 @@ class Inference:
         self._parse_and_add_assumption('read', '(=> ((Read a)) (Fn String a))')
         self._parse_and_add_assumption('%', '(=> ((Integral a)) (Fn a a a))')
 
-        for name, type_sig in builtin.FUNCTION_TYPES:
-            self._parse_and_add_assumption(name, type_sig)
+        for name, qual_type in builtin.get_function_types().items():
+            scheme = types.Scheme.quantify(qual_type.free_type_vars(), qual_type)
+            self.builtin_assumptions.define(name, scheme)
 
     def add_classes(self, classes):
         for cls in classes:
