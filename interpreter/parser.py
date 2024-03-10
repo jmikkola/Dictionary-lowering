@@ -9,7 +9,7 @@ from interpreter import program
 
 
 
-def parse(text: str) -> program.Program:
+def parse(text: str, is_builtin=False) -> program.Program:
     s_expressions = _parse_lists(text)
 
     functions = []
@@ -19,6 +19,7 @@ def parse(text: str) -> program.Program:
 
     for sexpr in s_expressions:
         parsed = _parse_top_level(sexpr)
+        parsed.is_builtin = is_builtin
         if isinstance(parsed, syntax.InstanceDef):
             instances.append(parsed)
         elif isinstance(parsed, syntax.ClassDef):

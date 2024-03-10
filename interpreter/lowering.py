@@ -133,13 +133,8 @@ class LoweringInput:
   (fn % (a b) (%:Int a b)))
 '''
 
-        parsed = parser.parse(text)
-
         # Mark these as builtin so that the code derrived from it doesn't have to get dumped
-        for c in parsed.classes:
-            c.is_builtin = True
-        for i in parsed.instances:
-            i.is_builtin = True
+        parsed = parser.parse(text, is_builtin=True)
 
         self.classes.extend(parsed.classes)
         self.instances.extend(parsed.instances)
