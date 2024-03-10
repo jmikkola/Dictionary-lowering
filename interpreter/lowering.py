@@ -70,15 +70,8 @@ class LoweringInput:
         self.classes.extend(parsed.classes)
         self.instances.extend(parsed.instances)
 
-        operators = ['+', '-', '*', '/', '==', '!=', 'show', '<', '<=', '>', '>=']
-        num_types = ['Int', 'Float']
-
-        for t in num_types:
-            for op in operators:
-                name = op + ':' + t
-                self.builtin_functions.add(name)
-
-        self.builtin_functions.add('%:Int')
+        for name in builtin.get_function_types():
+            self.builtin_functions.add(name)
 
 
     def lower(self):

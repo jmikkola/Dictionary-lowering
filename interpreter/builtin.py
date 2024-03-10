@@ -1,5 +1,8 @@
 # module builtins
 
+from interpreter import parser
+
+
 NAMES = [
     '!=',
     '%',
@@ -133,3 +136,75 @@ FUNCTION_TYPES = [
     ('concat', '(Fn String String String)'),
     ('length', '(Fn String Int)'),
 ]
+
+_function_types = None
+
+
+def get_function_types():
+    global _function_types
+
+    if _function_types is None:
+        _function_types = _compute_function_types()
+    return _function_types
+
+
+def _compute_function_types():
+    function_types = {}
+
+    # Add types for basic functions
+
+    standard_functions = [
+        ('str', '(Fn a String)'),
+        ('inc', '(Fn Int Int)'),
+        ('and', '(Fn Bool Bool Bool)'),
+        ('or', '(Fn Bool Bool Bool)'),
+        ('not', '(Fn Bool Bool)'),
+        ('print', '(Fn a Void)'),
+        ('concat', '(Fn String String String)'),
+        ('length', '(Fn String Int)'),
+    ]
+
+    for name, signature in standard_functions:
+        function_types[name] = _parse_function_type(signature)
+
+    # Add types for non-generic operations
+
+    function_types['%:Int'] = _parse_function_type('(Fn Int Int Int)')
+
+    num_operators = ['+', '-', '*', '/']
+    num_types = ['Int', 'Float']
+
+    eq_operators = ['==', '!=']
+    eq_types = ['Int', 'Float', 'String', 'Bool']
+
+    ord_operators = ['<', '<=', '>', '>=']
+    ord_types = ['Int', 'Float', 'String', 'Bool']
+
+    show_types = ['Int', 'Float', 'String', 'Bool']
+
+    def add_operators(ops, arg_type, ret_type):
+        sig = f'(Fn {arg_type} {arg_type} {ret_type})'
+        t = _parse_function_type(sig)
+
+        for op in ops:
+            name = op + ':' + arg_type
+            function_types[name] = t
+
+    for arg_type in num_types:
+        add_operators(num_operators, arg_type, arg_type)
+
+    for arg_type in eq_types:
+        add_operators(eq_operators, arg_type, 'Bool')
+
+    for arg_type in ord_types:
+        add_operators(ord_operators, arg_type, 'Bool')
+
+    for arg_type in show_types:
+        add_operators(['show'], arg_type, 'String')
+
+    return function_types
+
+
+def _parse_function_type(text):
+    sexpr = parser._parse_one_list(text)
+    return parser._parse_qualified_type(sexpr)
