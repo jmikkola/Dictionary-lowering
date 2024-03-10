@@ -1153,10 +1153,6 @@ class InferenceTest(unittest.TestCase):
             program.get_function('f').t
         )
 
-    # TODO:
-    # Test instances with instance predicates
-    # Test instances that use superclasses of the current class
-
     def empty_program(self):
         return parser.parse('')
 

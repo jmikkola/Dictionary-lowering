@@ -69,7 +69,6 @@ The next steps are:
 
 - [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
     - Precompute the schemes for struct construction and destruction
-    - Write the other tests in inference_test.py
     - Apply the monomorphism restriction to let bindings of non-function types
     - Add parsing/writing ability for explicitly-typed let bindings (and then read those types in
       type inference)
