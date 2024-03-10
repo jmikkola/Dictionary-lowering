@@ -1157,6 +1157,24 @@ class InferenceTest(unittest.TestCase):
             program.get_function('f').t
         )
 
+    def test_implementing_built_in_class(self):
+        text = '''
+(struct Point
+  (:: x Int)
+  (:: y Int))
+
+(instance (Show Point)
+  (fn show (p) "some string"))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+        f = program.instances[0].method_impls[0]
+        qt = f.t.apply(inf.substitution)
+
+        expected = qualified('(Fn Point String)')
+        self.assertEqual(expected, qt)
+
     def empty_program(self):
         return parser.parse('')
 

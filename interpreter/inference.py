@@ -22,9 +22,7 @@ class Inference:
         self.var_count = 0
         self.substitution = types.Substitution({})
 
-        self.class_names = set()  # type: typing.Set[str]
-        self.class_definitions = []  # type: typing.List[syntax.ClassDef]
-        self.supers_for_class = {}  # type: typing.Dict[str, typing.List[types.TClass]]
+        self.class_definitions = {}  # type: typing.Dict[str, syntax.ClassDef]
         self.instances = defaultdict(list)  # type: typing.Dict[str, typing.List[Instance]]
         self.builtin_assumptions = Assumptions()
 
@@ -46,10 +44,7 @@ class Inference:
 
     def add_classes(self, classes):
         for cls in classes:
-            name = cls.class_name()
-            self.class_names.add(name)
-            self.class_definitions.append(cls)
-            self.supers_for_class[name] = cls.supers
+            self.class_definitions[cls.class_name()] = cls
 
     def add_instances(self, instances):
         for inst in instances:
@@ -57,12 +52,11 @@ class Inference:
             self.add_instance(class_name, Instance.from_qual_pred(inst.qual_pred))
 
     def add_instance(self, class_name, inst):
-        if class_name not in self.class_names:
+        if class_name not in self.class_definitions:
             raise RuntimeError(f'No class definition for {class_name}')
         self.instances[class_name].append(inst)
 
     def infer(self):
-
         # Split bindings into explicitly typed and implicitly typed groups
         explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
 
@@ -122,7 +116,7 @@ class Inference:
             )
 
         # Class methods are another source of functions with known types
-        for cls in self.class_definitions:
+        for cls in self.class_definitions.values():
             class_predicate = cls.get_class_predicate()
             for method in cls.methods:
                 method_qual = types.Qualified(
@@ -300,7 +294,9 @@ class Inference:
             assert(isinstance(instance, syntax.InstanceDef))
 
             # Find the associated class
-            class_def = self.program.get_class(instance.get_class().name)
+            class_def = self.class_definitions.get(instance.get_class().name)
+            if class_def is None:
+                raise types.TypeError(f'Cannot find definition of class {instance.get_class().name}')
 
             # Get any prediates on the instance,
             # e.g. if the instance is for (=> ((Show a)) (Show (List a))),
@@ -775,7 +771,8 @@ class Inference:
         ''' Returns the current predicate plus the predicates that you also get because their classes are superclasses of the current class. '''
         result = [predicate]
 
-        for superclass in self.supers_for_class[predicate.tclass.name]:
+        class_def = self.class_definitions[predicate.tclass.name]
+        for superclass in class_def.supers:
             p = types.Predicate(superclass, predicate.t)
             result.extend(self.get_predicates_for_superclasses(p))
 
