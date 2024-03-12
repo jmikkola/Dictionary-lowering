@@ -68,13 +68,13 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 The next steps are:
 
 - [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
-    - Apply the monomorphism restriction to let bindings of non-function types
     - Add parsing/writing ability for explicitly-typed let bindings (and then read those types in
       type inference)
 - Write brief documentation explaining how the language works
 - Add enum/tagged union types (e.g. Some(x) | None)
 - Add an actual list type
 - Add enough built-in functions to make this usable (e.g. file IO, sockets, processes)
+- Add another lowering pass that removes lambdas
 
 Things that would be nice to add:
 

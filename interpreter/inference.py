@@ -2,7 +2,6 @@
 
 from collections import defaultdict
 import typing
-import functools
 
 from interpreter import builtin
 from interpreter import graph
@@ -208,8 +207,7 @@ class Inference:
         updated_assumptions = global_assumptions.apply(self.substitution)
         context_tvars = updated_assumptions.free_type_vars()
 
-        binding_tvars = functools.reduce(
-            lambda vars1, vars2: vars1 & vars2,
+        binding_tvars = types.FreeTypeVariables.intersection(
             (t.free_type_vars() for t in function_types.values())
         )
 
@@ -304,7 +302,6 @@ class Inference:
                 arg: self.next_type_var()
                 for arg in function.arg_names
             }
-
 
         function_assumptions = assumptions.make_child({
             arg: types.Scheme.to_scheme(tvar)
@@ -544,19 +541,37 @@ class Inference:
             context_tvars = assumptions.apply(self.substitution).free_type_vars()
 
             # Find what type variables are in all the binding's types
-            binding_tvars = functools.reduce(
-                lambda vars1, vars2: vars1 & vars2,  # type: ignore
-                (t.free_type_vars() for t in binding_types.values())
+            binding_tvars = [t.free_type_vars() for t in binding_types.values()]
+            # Vars that appear in every binding
+            all_binding_tvars = types.FreeTypeVariables.intersection(binding_tvars)
+
+            deferred, retained = self.split(context_tvars, all_binding_tvars, binding_predicates)
+
+            # Decide if the monomorphism restriction applies.
+            # It applies if any of the bindings aren't for a lambda function.
+            restricted = any(
+                not isinstance(binding.value, syntax.ELambda)
+                for binding in expr.bindings
             )
 
-            deferred, retained = self.split(context_tvars, binding_tvars, binding_predicates)
+            any_binding_tvars = types.FreeTypeVariables.union(binding_tvars)
+            any_binding_tvars -= context_tvars
+
+            if restricted:
+                any_binding_tvars -= types.FreeTypeVariables.union(
+                    [r.t.free_type_vars() for r in retained]
+                )
+
+                # Defer all the predicates so that they get defaulted later
+                deferred += retained
+                retained = []
 
             # Now that the types of the bindings are known, use that information to
             # generalize them.
             inner_assumptions = assumptions.make_child({
                 name: types.Scheme.quantify(
-                    binding_tvars,
-                    types.Qualified(retained, t)
+                    any_binding_tvars,
+                    types.Qualified(retained, t).apply(self.substitution)
                 )
                 for (name, t) in binding_types.items()
             })

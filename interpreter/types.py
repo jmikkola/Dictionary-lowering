@@ -35,6 +35,25 @@ class FreeTypeVariables:
         self.var_set = set(self.var_list)
 
     @classmethod
+    def union(cls, ftvs):
+        result = cls()
+        for ftv in ftvs:
+            result |= ftv
+        return result
+
+    @classmethod
+    def intersection(cls, ftvs):
+        result = None
+        for ftv in ftvs:
+            if result is None:
+                result = ftv
+            else:
+                result &= ftv
+        if result is None:
+            return cls()
+        return result
+
+    @classmethod
     def singleton(cls, tv):
         assert(isinstance(tv, TypeVariable))
         return cls(var_list=[tv])

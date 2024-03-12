@@ -1175,6 +1175,92 @@ class InferenceTest(unittest.TestCase):
         expected = qualified('(Fn Point String)')
         self.assertEqual(expected, qt)
 
+    def test_does_not_monomorphise_lambdas(self):
+        text = '''
+(fn no-mono ()
+  (let ((f (\ () 123)))
+    (concat (show (% (f) 3)) (show (* (f) 0.4)))))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('no-mono')
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Num a)) (Fn a))'),
+            function.body.bindings[0].t
+        )
+
+    def test_does_monomorphise_values_simple(self):
+        text = '''
+(fn with-mono ()
+  (let ((x 123))
+    (show x)))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('with-mono')
+        self.assert_qualifieds_equal(
+            qualified('(Fn String)'),
+            function.t
+        )
+        self.assert_qualifieds_equal(
+            qualified('Int'),
+            function.body.bindings[0].t
+        )
+
+    def test_does_monomorphise_values(self):
+        text = '''
+(fn with-mono ()
+  (let ((f (\ () 123))
+        (g 456))
+    g))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('with-mono')
+        self.assert_qualifieds_equal(
+            qualified('(Fn Int)'),
+            function.t
+        )
+        self.assert_qualifieds_equal(
+            qualified('(Fn Int)'),
+            function.body.bindings[0].t
+        )
+        self.assert_qualifieds_equal(
+            qualified('Int'),
+            function.body.bindings[1].t
+        )
+
+    def test_does_monomorphise_entire_let_group(self):
+        text = '''
+(fn with-mono ()
+  (let ((f (\ () 123))
+        (g 456))
+    (f)))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('with-mono')
+        self.assert_qualifieds_equal(
+            qualified('(Fn Int)'),
+            function.t
+        )
+        self.assert_qualifieds_equal(
+            qualified('(Fn Int)'),
+            function.body.bindings[0].t
+        )
+        self.assert_qualifieds_equal(
+            qualified('Int'),
+            function.body.bindings[1].t
+        )
+
     def empty_program(self):
         return parser.parse('')
 
