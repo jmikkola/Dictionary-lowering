@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from interpreter import check
+from interpreter import format
 from interpreter import inference
 from interpreter import lowering
 from interpreter import parser
@@ -38,8 +39,8 @@ def dump_program(program, show_builtins=True):
     for lisp in program.to_lisp(show_builtins):
         if not first:
             print()
-            first = False
-        print(syntax.render_lisp(lisp))
+        first = False
+        print(format.format_declaration(lisp))
 
 
 if __name__ == '__main__':
