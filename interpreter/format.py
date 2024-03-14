@@ -3,6 +3,15 @@
 from interpreter import parser
 
 
+def reformat(text):
+    ''' Reformats lisp text
+
+    This drops comments '''
+    lisps = parser._parse_lists(text)
+    declarations = [format_declaration(lisp) for lisp in lisps]
+    return '\n\n'.join(declarations)
+
+
 def format_declaration(lisp):
     first = lisp[0]
     if first == 'fn':
