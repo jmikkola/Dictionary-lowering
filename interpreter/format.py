@@ -90,8 +90,57 @@ def format(lisp):
     return _format(lisp, indent='', unclosed=0)
 
 
+TARGET_LINE_LENGTH = 50
+
+
 def _format(lisp, indent, unclosed):
-    return indent + render_lisp(lisp) + (')' * unclosed)
+    return _format_wrapped(lisp, indent, '', unclosed)
+
+
+def _format_wrapped(lisp, indent, prefix, unclosed):
+    ''' This unconditionally wraps the current expression (if it can be wrapped) '''
+    result = indent + prefix + render_lisp(lisp) + (')' * unclosed)
+    if len(result) <= TARGET_LINE_LENGTH or isinstance(lisp, str) or lisp == []:
+        return result
+
+    first = lisp[0]
+    additional_indent = '  '
+    keep_2 = False
+    indent_after_first = False
+    if first == '::':
+        additional_indent = '    '
+        keep_2 = True
+        indent_after_first = True
+    elif first in ('if', 'new', '\\'):
+        keep_2 = True
+    elif isinstance(first, list):
+        additional_indent = ' '
+        keep_2 = False
+
+    if keep_2:
+        second = lisp[1]
+        rest = lisp[2:]
+        start = prefix + '(' + render_lisp(first) + ' '
+        line = _format_wrapped(second, indent, start, 0)
+        if indent_after_first:
+            additional_indent = ' ' * len(start)
+        else:
+            additional_indent += ' ' * len(prefix)
+    else:
+        line = _format_wrapped(first, indent, prefix + '(', 0)
+        rest = lisp[1:]
+        additional_indent += ' ' * len(prefix)
+
+    lines = [line]
+
+    inner_indent = indent + additional_indent
+    for item in rest:
+        lines.append(_format_wrapped(item, inner_indent, '', 0))
+
+    unclosed += 1
+    lines[-1] += ')' * unclosed
+
+    return '\n'.join(lines)
 
 
 def render_lisp(lisp):

@@ -19,6 +19,9 @@ def main(args):
         return
 
     check_result = check.check(parse_result)
+
+    # Check doesn't change the program, so there's no point printing that
+
     inference_result = inference.infer_types(check_result)
 
     if '--dump-inferred' in args:

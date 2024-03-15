@@ -46,6 +46,25 @@ class FormatTest(unittest.TestCase):
 '''
         self.assert_reformats(input_text, output_text)
 
+    def test_wraps_long_lines(self):
+        input_text = '''
+(fn make__ParentMethods__String () (Fn (ParentMethods
+String)) (:: (new ParentMethods (:: (\ (s) (:: ((:: length
+(Fn String Int)) (:: s String)) Int)) (Fn String Int))) (ParentMethods
+String)))
+'''
+        output_text = '''
+(fn make__ParentMethods__String ()
+  (Fn (ParentMethods String))
+  (:: (new ParentMethods
+        (:: (\ (s)
+              (:: ((:: length (Fn String Int))
+                   (:: s String))
+                  Int))
+            (Fn String Int)))
+      (ParentMethods String)))
+'''
+        self.assert_reformats(input_text, output_text)
 
     def assert_reformats(self, input_text, output_text):
         self.assertEqual(output_text.strip(), format.reformat(input_text))
