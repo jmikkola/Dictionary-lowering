@@ -38,12 +38,7 @@ def main(args):
 
 
 def dump_program(program, show_builtins=True):
-    first = True
-    for lisp in program.to_lisp(show_builtins):
-        if not first:
-            print()
-        first = False
-        print(format.format_declaration(lisp))
+    print(program.format(show_builtins))
 
 
 if __name__ == '__main__':

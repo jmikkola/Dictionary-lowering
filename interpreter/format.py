@@ -98,7 +98,7 @@ def _format(lisp, indent, unclosed):
 
 
 def _format_wrapped(lisp, indent, prefix, unclosed):
-    ''' This unconditionally wraps the current expression (if it can be wrapped) '''
+    ''' This wraps the current expression, if needed '''
     result = indent + prefix + render_lisp(lisp) + (')' * unclosed)
     if len(result) <= TARGET_LINE_LENGTH or isinstance(lisp, str) or lisp == []:
         return result
@@ -118,6 +118,10 @@ def _format_wrapped(lisp, indent, prefix, unclosed):
         keep_2 = False
 
     if keep_2:
+        # These are expressions that wrap like
+        #
+        # (:: foo
+        #     Bar)
         second = lisp[1]
         rest = lisp[2:]
         start = prefix + '(' + render_lisp(first) + ' '
@@ -127,6 +131,10 @@ def _format_wrapped(lisp, indent, prefix, unclosed):
         else:
             additional_indent += ' ' * len(prefix)
     else:
+        # These are expressions that wrap like
+        #
+        # (foo
+        #  bar)
         line = _format_wrapped(first, indent, prefix + '(', 0)
         rest = lisp[1:]
         additional_indent += ' ' * len(prefix)

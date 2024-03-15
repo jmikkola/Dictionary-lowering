@@ -2,7 +2,9 @@
 
 import typing
 
+from interpreter import format
 from interpreter import syntax
+
 
 class Program:
     ''' Program holds the contents of a program.
@@ -28,6 +30,13 @@ class Program:
         lisp += [c.to_lisp() for c in self.classes if show_builtins or not c.is_builtin]
         lisp += [i.to_lisp() for i in self.instances if show_builtins or not i.is_builtin]
         return lisp
+
+    def format(self, show_builtins=False):
+        lines = [
+            format.format_declaration(decl)
+            for decl in self.to_lisp(show_builtins)
+        ]
+        return '\n\n'.join(lines)
 
     def __eq__(self, o):
         return (
