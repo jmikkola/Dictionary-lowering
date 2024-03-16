@@ -46,7 +46,7 @@ class FormatTest(unittest.TestCase):
 '''
         self.assert_reformats(input_text, output_text)
 
-    def test_wraps_long_lines(self):
+    def test_wraps_long_lines_at_50(self):
         input_text = '''
 (fn make__ParentMethods__String () (Fn (ParentMethods
 String)) (:: (new ParentMethods (:: (\ (s) (:: ((:: length
@@ -64,7 +64,25 @@ String)))
             (Fn String Int)))
       (ParentMethods String)))
 '''
-        self.assert_reformats(input_text, output_text)
+        self.assert_reformats(input_text, output_text, target=50)
 
-    def assert_reformats(self, input_text, output_text):
-        self.assertEqual(output_text.strip(), format.reformat(input_text))
+    def test_wraps_long_lines_at_80(self):
+        input_text = '''
+(fn make__ParentMethods__String () (Fn (ParentMethods
+String)) (:: (new ParentMethods (:: (\ (s) (:: ((:: length
+(Fn String Int)) (:: s String)) Int)) (Fn String Int))) (ParentMethods
+String)))
+'''
+        output_text = '''
+(fn make__ParentMethods__String ()
+  (Fn (ParentMethods String))
+  (:: (new ParentMethods
+        (:: (\ (s) (:: ((:: length (Fn String Int)) (:: s String)) Int))
+            (Fn String Int)))
+      (ParentMethods String)))
+'''
+        self.assert_reformats(input_text, output_text, target=80)
+
+    def assert_reformats(self, input_text, output_text, target=80):
+        formatted = format.reformat(input_text, target_line_length=target)
+        self.assertEqual(output_text.strip(), formatted)
