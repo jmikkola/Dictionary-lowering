@@ -1,7 +1,7 @@
 .PHONY: all test check TAGS pylint pyflakes coverage installdeps watch
 
 
-all: check test TAGS
+all: TAGS check test
 
 test:
 	python3 -m unittest discover -s interpreter -p '*_test.py'
