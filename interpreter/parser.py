@@ -397,18 +397,35 @@ def _parse_let_bindings(sexprs):
     Example: ((x 1) (y 2))
     '''
     assert(isinstance(sexprs, list))
-    bindings = []
-    for sexpr in sexprs:
-        assert(isinstance(sexpr, list))
-        if len(sexpr) != 2:
-            print('not of length 2', syntax.render_lisp(sexpr))
-            print('actually of length', len(sexpr))
-        assert(len(sexpr) == 2)
-        name = sexpr[0]
-        value = _parse_expression(sexpr[1])
-        binding = syntax.Binding(name, value)
-        bindings.append(binding)
-    return bindings
+    return [
+        _parse_let_binding(sexpr)
+        for sexpr in sexprs
+    ]
+
+
+def _parse_let_binding(lisp):
+    ''' Parses a single let binding.
+
+    Examples:
+    (x 1)
+    ((:: x Int) 1)
+    '''
+    assert(isinstance(lisp, list))
+    assert(len(lisp) == 2)
+
+    first = lisp[0]
+    if isinstance(first, str):
+        name = first
+        t = None
+    else:
+        assert(len(first) == 3)
+        assert(first[0] == '::')
+        name = first[1]
+        t = _parse_qualified_type(first[2])
+
+    value = _parse_expression(lisp[1])
+
+    return syntax.Binding(name, value, t)
 
 def _parse_struct_definition(sexpr):
     ''' Parses struct definitions.

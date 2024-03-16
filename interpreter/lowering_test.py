@@ -197,24 +197,25 @@ class TestLowering(unittest.TestCase):
         output_text = '''
 (fn use-to-str ()
   (Fn String)
-  (:: (let ((to-str (:: (\ (dict_Show_t4 n)
-                           (:: ((:: (. (:: dict_Show_t4 (ShowMethods t4)) show)
-                                    (Fn t4 String))
-                                (:: n t4))
-                               String))
-                        (Fn (ShowMethods t4) t4 String))))
-         (:: ((:: concat (Fn String String String))
-              (:: ((:: to-str (Fn (ShowMethods Bool) Bool String))
-                   (:: ((:: make__ShowMethods__Bool (Fn (ShowMethods Bool))))
-                       (ShowMethods Bool))
-                   true)
-                  String)
-              (:: ((:: to-str (Fn (ShowMethods String) String String))
-                   (:: ((:: make__ShowMethods__String (Fn (ShowMethods String))))
-                       (ShowMethods String))
-                   "")
-                  String))
-             String))
+  (:: (let (((:: to-str (Fn (ShowMethods t4) t4 String))
+             (:: (\ (dict_Show_t4 n)
+                   (:: ((:: (. (:: dict_Show_t4 (ShowMethods t4)) show)
+                            (Fn t4 String))
+                        (:: n t4))
+                       String))
+                 (Fn (ShowMethods t4) t4 String))))
+        (:: ((:: concat (Fn String String String))
+             (:: ((:: to-str (Fn (ShowMethods Bool) Bool String))
+                  (:: ((:: make__ShowMethods__Bool (Fn (ShowMethods Bool))))
+                      (ShowMethods Bool))
+                  true)
+                 String)
+             (:: ((:: to-str (Fn (ShowMethods String) String String))
+                  (:: ((:: make__ShowMethods__String (Fn (ShowMethods String))))
+                      (ShowMethods String))
+                  "")
+                 String))
+            String))
       String))
 '''
 
@@ -906,10 +907,7 @@ def print_result(result):
 
 def show_result(result):
     assert(isinstance(result, Program))
-    return '\n'.join(
-        syntax.render_lisp(lisp)
-        for lisp in result.to_lisp(show_builtins=False)
-    )
+    return result.format()
 
 
 def make_lowering_input(text):

@@ -8,6 +8,7 @@ from interpreter.parser import (
     _parse_function_declaration,
     _parse_instance_definition,
     _parse_lists,
+    _parse_one_list,
     _parse_qualified_type,
     _parse_struct_definition,
     _parse_type,
@@ -64,6 +65,54 @@ class ParserTest(unittest.TestCase):
             ],
             syntax.EVariable(None, 'x')
         )
+        self.assertEqual(expected, result)
+        self.roundtrip_expression(expected)
+
+    def test_parses_typed_let_binding(self):
+        text = '''
+(let (((:: f (=> ((Show a)) (Fn a String))) (\ (x) (show x))))
+  (f 123))
+'''
+        result = _parse_expression(_parse_one_list(text))
+
+        expected = syntax.ELet(
+            None,
+            [
+                syntax.Binding(
+                    'f',
+                    syntax.ELambda(
+                        None,
+                        ['x'],
+                        syntax.ECall(
+                            None,
+                            syntax.EVariable(None, 'show'),
+                            [syntax.EVariable(None, 'x')]
+                        )
+                    ),
+                    t=types.Qualified(
+                        [
+                            types.Predicate(
+                                types.TClass('Show'),
+                                types.TVariable.from_varname('a')
+                            )
+                        ],
+                        types.TApplication(
+                            types.TConstructor('Fn'),
+                            [
+                                types.TVariable.from_varname('a'),
+                                types.TConstructor('String')
+                            ]
+                        )
+                    )
+                )
+            ],
+            syntax.ECall(
+                None,
+                syntax.EVariable(None, 'f'),
+                [syntax.ELiteral(syntax.LInt(123))]
+            )
+        )
+
         self.assertEqual(expected, result)
         self.roundtrip_expression(expected)
 

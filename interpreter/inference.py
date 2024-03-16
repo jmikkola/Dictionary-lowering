@@ -541,11 +541,11 @@ class Inference:
             context_tvars = assumptions.apply(self.substitution).free_type_vars()
 
             # Find what type variables are in all the binding's types
-            binding_tvars = [t.free_type_vars() for t in binding_types.values()]
+            ftvs_in_bindings = [t.free_type_vars() for t in binding_types.values()]
             # Vars that appear in every binding
-            all_binding_tvars = types.FreeTypeVariables.intersection(binding_tvars)
+            all_ftvs_in_bindings = types.FreeTypeVariables.intersection(ftvs_in_bindings)
 
-            deferred, retained = self.split(context_tvars, all_binding_tvars, binding_predicates)
+            deferred, retained = self.split(context_tvars, all_ftvs_in_bindings, binding_predicates)
 
             # Decide if the monomorphism restriction applies.
             # It applies if any of the bindings aren't for a lambda function.
@@ -554,11 +554,11 @@ class Inference:
                 for binding in expr.bindings
             )
 
-            any_binding_tvars = types.FreeTypeVariables.union(binding_tvars)
-            any_binding_tvars -= context_tvars
+            any_ftvs_in_bindings = types.FreeTypeVariables.union(ftvs_in_bindings)
+            any_ftvs_in_bindings -= context_tvars
 
             if restricted:
-                any_binding_tvars -= types.FreeTypeVariables.union(
+                any_ftvs_in_bindings -= types.FreeTypeVariables.union(
                     [r.t.free_type_vars() for r in retained]
                 )
 
@@ -570,7 +570,7 @@ class Inference:
             # generalize them.
             inner_assumptions = assumptions.make_child({
                 name: types.Scheme.quantify(
-                    any_binding_tvars,
+                    any_ftvs_in_bindings,
                     types.Qualified(retained, t).apply(self.substitution)
                 )
                 for (name, t) in binding_types.items()

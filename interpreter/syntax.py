@@ -303,11 +303,11 @@ class Binding:
     def __init__(self, name: str, value: Expression, t=None):
         self.name = name
         self.value = value
-        # this type can't be explicitly set in the syntax, but is used to store
-        # results from type inference
         self.t = t
 
     def __str__(self):
+        if self.t is not None:
+            return f'{self.name} :: {self.t} = {self.value}'
         return f'{self.name} = {self.value}'
 
     def __repr__(self):
@@ -322,7 +322,11 @@ class Binding:
         )
 
     def to_lisp(self):
-        return [self.name, self.value.to_lisp()]
+        if self.t is None:
+            first = self.name
+        else:
+            first = ['::', self.name, self.t.to_lisp()]
+        return [first, self.value.to_lisp()]
 
     def get_predicates(self):
         if self.t is None:
