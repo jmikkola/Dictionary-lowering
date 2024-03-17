@@ -303,6 +303,8 @@ class Binding:
     def __init__(self, name: str, value: Expression, t=None):
         self.name = name
         self.value = value
+        if t is not None:
+            assert(isinstance(t, types.Qualified))
         self.t = t
 
     def __str__(self):

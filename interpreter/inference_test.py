@@ -1092,6 +1092,62 @@ class InferenceTest(unittest.TestCase):
         expected = qualified('(Fn String)')
         self.assertEqual(expected, function.t)
 
+    def test_typed_let_binding_with_pred_and_instantiations(self):
+        text = '''
+(fn use-to-str ()
+  (let (((:: to-str (=> ((Show t)) (Fn t String)))
+         (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(Fn String)')
+        self.assertEqual(expected, function.t)
+
+    def test_typed_let_binding_can_access_struct_fields(self):
+        text = '''
+(struct Point
+  (:: x Int)
+  (:: y Int))
+
+(fn show-x (p)
+  (let (((:: get-x (Fn Point Int))
+         (\ (point) (. point x))))
+    (show (get-x p))))
+'''
+
+        program = parser.parse(text)
+        program = inference.infer_types(program)
+        function = program.functions[0]
+        expected = qualified('(Fn Point String)')
+        self.assertEqual(expected, function.t)
+
+    def test_typed_let_binding_wrong_predicate(self):
+        text = '''
+(fn use-to-str ()
+  (let (((:: to-str (=> ((Ord t)) (Fn t String)))
+         (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+
+        program = parser.parse(text)
+        with self.assertRaises(types.TypeError):
+            inference.infer_types(program)
+
+    def test_typed_let_binding_wrong_type(self):
+        text = '''
+(fn use-to-str ()
+  (let (((:: to-str (=> ((Show t)) (Fn t Int)))
+         (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+
+        program = parser.parse(text)
+        with self.assertRaises(types.TypeError):
+            inference.infer_types(program)
+
     def test_let_binding_with_deferred_predicates(self):
         text = '''
 (fn foo (x)
