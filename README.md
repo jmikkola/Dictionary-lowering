@@ -67,9 +67,6 @@ This has a parser front-end that uses an ml-like lisp-based syntax.
 
 The next steps are:
 
-- [In progress] Add a type inference pass (so the input doesn't have to be fully annotated with types)
-    - Add parsing/writing ability for explicitly-typed let bindings (and then read those types in
-      type inference)
 - Write brief documentation explaining how the language works
 - Add enum/tagged union types (e.g. Some(x) | None)
 - Add an actual list type

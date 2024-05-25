@@ -26,7 +26,9 @@ class InferenceTest(unittest.TestCase):
 '''
         program = parser.parse(text)
 
-        explicit_typed, implicit_typed_groups = inference.split_bindings(program.functions)
+        bind_group = inference.split_bindings(program.functions)
+        implicit_typed_groups = bind_group.implicit_typed_groups
+        explicit_typed = bind_group.explicit_typed
 
         expl_names = sorted(f.name for f in explicit_typed)
         self.assertEqual(['expl1', 'expl2'], expl_names)
@@ -324,20 +326,20 @@ class InferenceTest(unittest.TestCase):
         inf = inference.Inference(self.empty_program())
         assumptions = inference.Assumptions()
 
-        predicates, t = inf.infer_expression(assumptions, expression('"abc"'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('"abc"'))
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('String'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('123.45'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('123.45'))
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('Float'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('123'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('123'))
         self.assertEqual([predicate('(Num t1)')], predicates)
         self.assertEqual(types.TVariable.from_varname('t1'), t)
 
         # Infering that again gives new type variables
-        predicates, t = inf.infer_expression(assumptions, expression('123'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('123'))
         self.assertEqual([predicate('(Num t2)')], predicates)
         self.assertEqual(types.TVariable.from_varname('t2'), t)
 
@@ -351,16 +353,16 @@ class InferenceTest(unittest.TestCase):
             ),
         })
 
-        predicates, t = inf.infer_expression(assumptions, expression('x'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('x'))
         self.assertEqual([], predicates)
         self.assertEqual(types.TConstructor('Int'), t)
 
-        predicates, t = inf.infer_expression(assumptions, expression('y'), [])
+        predicates, t = inf.infer_expression(assumptions, expression('y'))
         self.assertEqual([predicate('(Eq t1)')], predicates)
         self.assertEqual(type_('(Fn t1 t1)'), t)
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression('z'), [])
+            inf.infer_expression(assumptions, expression('z'))
 
     def test_infer_call(self):
         inf = inference.Inference(self.empty_program())
@@ -373,7 +375,7 @@ class InferenceTest(unittest.TestCase):
 
         expr = expression('(f "abc")')
 
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([predicate('(Eq t1)')], predicates)
         predicates_subbed = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Eq String)')], predicates_subbed)
@@ -394,16 +396,16 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression("(new Point 1 2)")
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([predicate('(Num t1)'), predicate('(Num t2)')], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Point'), t)
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression("(new Point 1 \"a\")"), [])
+            inf.infer_expression(assumptions, expression("(new Point 1 \"a\")"))
 
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expression("(new Point 1 2 3)"), [])
+            inf.infer_expression(assumptions, expression("(new Point 1 2 3)"))
 
     def test_infer_generic_struct(self):
         text = '''
@@ -415,13 +417,13 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression('(new Pair "abc" false)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Pair String Bool)'), t)
 
         expr = expression('(new Pair (new Pair "abc" 123.0) false)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('(Pair (Pair String Float) Bool)'), t)
@@ -436,7 +438,7 @@ class InferenceTest(unittest.TestCase):
         assumptions = inference.Assumptions()
 
         expr = expression('(. (new Point 1 2) x)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Num Int)'), predicate('(Num Int)')], predicates)
         t = t.apply(inf.substitution)
@@ -444,7 +446,7 @@ class InferenceTest(unittest.TestCase):
 
         # Nested access works
         expr = expression('(. (. (new Pair (new Pair "abc" 123.0) false) first) second)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
@@ -452,11 +454,11 @@ class InferenceTest(unittest.TestCase):
         with self.assertRaises(types.TypeError):
             # z is not a field of Point
             expr = expression('(. (new Point 1 2) z)')
-            inf.infer_expression(assumptions, expr, [])
+            inf.infer_expression(assumptions, expr)
 
         with self.assertRaises(types.TypeError):
             expr = expression('(. "foo" x)')
-            inf.infer_expression(assumptions, expr, [])
+            inf.infer_expression(assumptions, expr)
 
     def test_infer_let(self):
         inf = inference.Inference(self.empty_program())
@@ -477,14 +479,14 @@ class InferenceTest(unittest.TestCase):
 
         # A simple let expression
         expr = expression('(let ((x "abc") (y 123.0)) x)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('String'), t)
 
         # A let expression where one value depends on the other
         expr = expression('(let ((x 123.0) (y (* 2.0 x))) y)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
@@ -493,7 +495,7 @@ class InferenceTest(unittest.TestCase):
         # Can surface predicates for variables referenced in the bindings
         expr = expression('(let ((x (show var))) x)')
         inf = inference.Inference(self.empty_program())
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Show t2)')], predicates)
         t = t.apply(inf.substitution)
@@ -502,7 +504,7 @@ class InferenceTest(unittest.TestCase):
         # A variable can be instantiated at multiple different types
         expr = expression('(let ((id (\ (x) x))) ((id id) false))')
         inf = inference.Inference(self.empty_program())
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Bool'), t)
@@ -524,14 +526,14 @@ class InferenceTest(unittest.TestCase):
 
         # If expression with matching types
         expr = expression('(if true 1.0 2.0)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Float'), t)
 
         # The test is forced to have the type Bool
         expr = expression('(if var var var)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         t = t.apply(inf.substitution)
         self.assertEqual(type_('Bool'), t)
@@ -539,12 +541,12 @@ class InferenceTest(unittest.TestCase):
         # Fails if the branches have different types
         expr = expression('(if true "x" 2.0)')
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expr, [])
+            inf.infer_expression(assumptions, expr)
 
         # Fails if the test isn't a boolean
         expr = expression('(if "x" 2 3)')
         with self.assertRaises(types.TypeError):
-            inf.infer_expression(assumptions, expr, [])
+            inf.infer_expression(assumptions, expr)
 
     def test_infer_lambda(self):
         inf = inference.Inference(self.empty_program())
@@ -552,13 +554,13 @@ class InferenceTest(unittest.TestCase):
 
         # Very simple, no argument lambda
         expr = expression('(\ () true)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         self.assertEqual(type_('(Fn Bool)'), t)
 
         # A lambda that takes an argument
         expr = expression('(\ (x) x)')
-        predicates, t = inf.infer_expression(assumptions, expr, [])
+        predicates, t = inf.infer_expression(assumptions, expr)
         self.assertEqual([], predicates)
         self.assertEqual(type_('(Fn t1 t1)'), t)
 
@@ -578,7 +580,7 @@ class InferenceTest(unittest.TestCase):
 
         # Make use of those assumptions:
         expr = expression('(\ (x) (next x))')
-        predicates, t = inf.infer_expression(inference.Assumptions(assumptions), expr, [])
+        predicates, t = inf.infer_expression(inference.Assumptions(assumptions), expr)
         predicates = inf.substitution.apply_to_list(predicates)
         self.assertEqual([predicate('(Next t2)')], predicates)
         t = t.apply(inf.substitution)
@@ -1247,7 +1249,47 @@ class InferenceTest(unittest.TestCase):
             function.body.bindings[0].t
         )
 
-    def test_does_monomorphise_values_simple(self):
+    def test_keeps_show_predicate_on_lambda(self):
+        text = '''
+(fn use-to-str ()
+  (let ((to-str (\ (n) (show n))))
+    (concat (to-str true) (to-str ""))))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('use-to-str')
+        self.assert_qualifieds_equal(
+            qualified('(Fn String)'),
+            function.t
+        )
+        self.assert_qualifieds_equal(
+            qualified('(=> ((Show a)) (Fn a String))'),
+            function.body.bindings[0].t
+        )
+
+    def test_does_monomorphise_values_no_predicates(self):
+        text = '''
+(fn with-mono ()
+  (let ((x false))
+    (show x)))
+'''
+        inf = inference.Inference(parser.parse(text))
+
+        program = inf.infer()
+
+        function = program.get_function('with-mono')
+        self.assert_qualifieds_equal(
+            qualified('(Fn String)'),
+            function.t
+        )
+        self.assert_qualifieds_equal(
+            qualified('Bool'),
+            function.body.bindings[0].t
+        )
+
+    def test_does_monomorphise_values_with_predicates(self):
         text = '''
 (fn with-mono ()
   (let ((x 123))
@@ -1321,11 +1363,14 @@ class InferenceTest(unittest.TestCase):
         return parser.parse('')
 
     def assert_qualifieds_equal(self, expected, actual):
-        # Make sure the expected type can be matched to the actual
-        sub = types.match(expected.t, actual.t)
-        # also make sure the actual can be matched to the expected type
-        # to ensure that the expected type isn't more general
-        types.match(actual.t, expected.t)
+        try:
+            # Make sure the expected type can be matched to the actual
+            sub = types.match(expected.t, actual.t)
+            # also make sure the actual can be matched to the expected type
+            # to ensure that the expected type isn't more general
+            types.match(actual.t, expected.t)
+        except Exception as e:
+            self.fail(f'failed to match types {expected} and {actual}: {e}')
 
         # Check that they are equal now to ensure that the predicates match
         self.assertEqual(expected.apply(sub), actual)

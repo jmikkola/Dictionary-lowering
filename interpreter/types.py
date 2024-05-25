@@ -35,6 +35,12 @@ class FreeTypeVariables:
         self.var_set = set(self.var_list)
 
     @classmethod
+    def of_list(cls, items):
+        return cls.union(
+            (item.free_type_vars() for item in items)
+        )
+
+    @classmethod
     def union(cls, ftvs):
         result = cls()
         for ftv in ftvs:
@@ -276,6 +282,9 @@ class Predicate:
             self.tclass,
             self.t.apply(substitution)
         )
+
+    def free_type_vars(self) -> FreeTypeVariables:
+        return self.t.free_type_vars()
 
 
 class Qualified:

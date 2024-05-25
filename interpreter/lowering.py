@@ -409,7 +409,7 @@ class LoweringInput:
                 arg_names=new_arg_names + value.arg_names,
                 body=body
             )  # type: Expression
-            t = decl_type
+            t = Qualified([], decl_type)
         else:
             lowered = self._lower_expression(context, value)
             t = binding.t

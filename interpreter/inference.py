@@ -35,6 +35,12 @@ class Inference:
         self.add_instances(self.program.instances)
         self.add_struct_types(self.program.structs)
 
+        # Keep a list of each syntax node where inference sets a type.
+        # After the final defaulting process updates the substitution,
+        # inference needs to come back and apply the new substitution to all
+        # the types assigned to these nodes.
+        self.syntax_given_types = []  # type: typing.List
+
     def add_builtins(self):
         # Add built-in classes. These aren't exactly Haskell's classes.
         self.add_classes(builtin.get_classes())
@@ -97,7 +103,33 @@ class Inference:
 
     def infer(self):
         # Split bindings into explicitly typed and implicitly typed groups
-        explicit_typed, implicit_typed_groups = split_bindings(self.program.functions)
+        bind_group = split_bindings(self.program.functions)
+
+        # Infer the types of the functions
+        predicates, assumptions, typed_functions = self.infer_bind_group(bind_group)
+
+        # Check the types of methods in instances
+        instances = self.infer_instances(assumptions, self.program.instances)
+
+        # Apply the defaulting substitution to any predicates that remain
+        self.post_process_predicates(predicates)
+        # Update the types on syntax in response to applying that substitution
+        self.post_process_syntax()
+
+        # Return the program with types inferred
+        return Program(
+            'inference',
+            functions=typed_functions,
+            structs=self.program.structs,
+            classes=self.program.classes,
+            instances=instances,
+        )
+
+    def infer_bind_group(self, bind_group):
+        assert(isinstance(bind_group, BindGroup))
+
+        explicit_typed = bind_group.explicit_typed
+        implicit_typed_groups = bind_group.implicit_typed_groups
 
         predicates = []
         assumptions = self.builtin_assumptions.make_child(
@@ -118,9 +150,11 @@ class Inference:
             preds = self.infer_explicit(assumptions, f, scheme)
             predicates.extend(preds)
 
-        # Finally, check the types of types in instances
-        instances = self.infer_instances(assumptions, self.program.instances)
+        typed_functions = explicit_typed + [f for group in implicit_typed_groups for f in group]
 
+        return (predicates, assumptions, typed_functions)
+
+    def post_process_predicates(self, predicates):
         # Update the predicates with the current substitution
         predicates = self.substitution.apply_to_list(predicates)
 
@@ -132,27 +166,14 @@ class Inference:
         defauling_substitution = self.apply_defaults(retained_predicates)
         self.substitution = self.substitution.compose(defauling_substitution)
 
-        typed_functions = explicit_typed + [f for group in implicit_typed_groups for f in group]
-
-        # Return the program with types inferred
-        return Program(
-            'inference',
-            functions=typed_functions,
-            structs=self.program.structs,
-            classes=self.program.classes,
-            instances=instances,
-        )
+    def post_process_syntax(self):
+        substitution = self.substitution
+        for node in self.syntax_given_types:
+            node.t = node.t.apply(substitution)
 
     def get_assumptions_for_functions(self, explicit_typed):
-        assumptions = {}
-
         # Add the types of the explicitly-typed functions to the assumptions
-        for f in explicit_typed:
-            qual_type = f.t
-            assumptions[f.name] = types.Scheme.quantify(
-                qual_type.free_type_vars(),
-                qual_type
-            )
+        assumptions = self.get_assumptions_for_explicitly_typed(explicit_typed)
 
         # Class methods are another source of functions with known types
         for cls in self.class_definitions.values():
@@ -167,6 +188,19 @@ class Inference:
                     method_qual
                 )
                 assumptions[method.method_name] = method_scheme
+
+        return assumptions
+
+    def get_assumptions_for_explicitly_typed(self, explicit_typed):
+        assumptions = {}
+
+        for f in explicit_typed:
+            qual_type = f.t
+            assert(isinstance(qual_type, types.Qualified))
+            assumptions[f.name] = types.Scheme.quantify(
+                qual_type.free_type_vars(),
+                qual_type
+            )
 
         return assumptions
 
@@ -187,16 +221,13 @@ class Inference:
         })
 
         predicates = []
-        all_expressions = []
 
         for function in functions:
             assert(isinstance(function, syntax.DFunction))
-            expressions = []
-            preds, t = self.infer_function(assumptions, function, expressions)
+            preds, t = self.infer_function(assumptions, function)
             self.unify_types(t, tvars[function.name])
 
             predicates.extend(preds)
-            all_expressions.extend(expressions)
 
         predicates = self.substitution.apply_to_list(predicates)
         function_types = {
@@ -218,6 +249,7 @@ class Inference:
 
         # Sort the predicates in a stable order to make tests reliable
         retained = sorted(retained, key=lambda p: (p.tclass.name, str(p.t)))
+        # TODO: this may be qualifying the function with the wrong set of vars (se `gs` in thih)
         function_schemes = {
             name: types.Scheme.quantify(binding_tvars, types.Qualified(retained, t))
             for (name, t) in function_types.items()
@@ -227,8 +259,7 @@ class Inference:
         for function in functions:
             t = function_types[function.name]
             function.t = types.Qualified(retained, t)
-
-        self.apply_sub_to_expressions(all_expressions)
+            self.syntax_given_types.append(function)
 
         return deferred, function_schemes
 
@@ -240,13 +271,9 @@ class Inference:
         # The scheme for function should have been already written to the assumptions
         function_type = self.instantiate(scheme)
 
-        # Inferring the body of the function adds the expressions it sees to this list
-        expressions = []
-
         predicates, inferred_type = self.infer_function(
             assumptions,
             function,
-            expressions,
             given_type=function_type.t
         )
         self.unify_types(inferred_type, function_type.t)
@@ -280,14 +307,12 @@ class Inference:
         if retained:
             raise types.TypeError(f'The signature for {function.name} is missing predicates {retained}')
 
-        # Apply the substitution again because it may have been updated by
-        # applying default types in the call to .split()
-        function.t = function_type.apply(self.substitution)
-        self.apply_sub_to_expressions(expressions)
+        function.t = function_type
+        self.syntax_given_types.append(function)
 
         return deferred
 
-    def infer_function(self, assumptions, function, expressions, given_type=None):
+    def infer_function(self, assumptions, function, given_type=None):
         if given_type is not None:
             assert(isinstance(given_type, types.Type))
             # For functions with explicit types, update the types of the
@@ -308,7 +333,7 @@ class Inference:
             for (arg, tvar) in arg_types.items()
         })
 
-        predicates, body_type = self.infer_expression(function_assumptions, function.body, expressions)
+        predicates, body_type = self.infer_expression(function_assumptions, function.body)
         function_type = types.make_function_type(
             [arg_types[arg] for arg in function.arg_names],
             body_type
@@ -370,13 +395,6 @@ class Inference:
 
         return instances
 
-    def apply_sub_to_expressions(self, expressions):
-        ''' Modifies the expressions in-place, applying the given substitution to their types '''
-        for expr in expressions:
-            assert(isinstance(expr, syntax.Expression) or isinstance(expr, syntax.Binding))
-            assert(expr.t is not None)
-            expr.t = expr.t.apply(self.substitution)
-
     def infer_literal(self, lit: syntax.Literal):
         # Integer literals can be used as any numeric type
         if isinstance(lit, syntax.LInt):
@@ -386,10 +404,10 @@ class Inference:
         # Other types are simpler
         return ([], lit.get_type())
 
-    def infer_expression(self, assumptions, expr: syntax.Expression, expressions):
+    def infer_expression(self, assumptions, expr: syntax.Expression):
         user_defined_type = expr.t
 
-        predicates, t = self._infer_expression(assumptions, expr, expressions)
+        predicates, t = self._infer_expression(assumptions, expr)
 
         if user_defined_type is not None:
             # Allow the user-defined type to be narrower but not wider than the
@@ -399,11 +417,11 @@ class Inference:
             t = t.apply(self.substitution)
 
         expr.t = t
-        expressions.append(expr)
+        self.syntax_given_types.append(expr)
 
         return (predicates, t)
 
-    def _infer_expression(self, assumptions, expr: syntax.Expression, expressions):
+    def _infer_expression(self, assumptions, expr: syntax.Expression):
         assert(isinstance(assumptions, Assumptions))
 
         if isinstance(expr, syntax.EVariable):
@@ -415,11 +433,11 @@ class Inference:
             return self.infer_literal(expr.literal)
 
         elif isinstance(expr, syntax.ECall):
-            predicates, fn_type = self.infer_expression(assumptions, expr.f_expr, expressions)
+            predicates, fn_type = self.infer_expression(assumptions, expr.f_expr)
 
             arg_types = []  # type: typing.List[types.Type]
             for arg in expr.arg_exprs:
-                ps, arg_t = self.infer_expression(assumptions, arg, expressions)
+                ps, arg_t = self.infer_expression(assumptions, arg)
                 predicates.extend(ps)
                 arg_types.append(arg_t)
 
@@ -443,7 +461,7 @@ class Inference:
             predicates = []
             arg_types = []
             for arg in expr.arg_exprs:
-                ps, arg_t = self.infer_expression(assumptions, arg, expressions)
+                ps, arg_t = self.infer_expression(assumptions, arg)
                 predicates.extend(ps)
                 arg_types.append(arg_t)
 
@@ -468,7 +486,7 @@ class Inference:
             raise RuntimeError('Partial application should not exist until lowering')
 
         elif isinstance(expr, syntax.EAccess):
-            predicates, inner_t = self.infer_expression(assumptions, expr.lhs, expressions)
+            predicates, inner_t = self.infer_expression(assumptions, expr.lhs)
             inner_t = inner_t.apply(self.substitution)
 
             # Require that type inference have already figured out the type
@@ -508,95 +526,19 @@ class Inference:
             return predicates, ret_type
 
         elif isinstance(expr, syntax.ELet):
-            binding_tvars = {
-                binding.name: self.next_type_var()
-                for binding in expr.bindings
-            }
-            temp_assumptions = assumptions.make_child({
-                name: types.Scheme.to_scheme(tvar)
-                for (name, tvar) in binding_tvars.items()
-            })
-
-            binding_predicates = []
-            binding_types = {}
-
-            for binding in expr.bindings:
-                ps, binding_t = self.infer_expression(temp_assumptions, binding.value, expressions)
-                binding_predicates.extend(ps)
-                binding_types[binding.name] = binding_t
-                self.unify_types(binding_t, binding_tvars[binding.name])
-
-            # Update the types with the information learned after typing all the bindings
-            # (one binding might narrow the type of another)
-            binding_types = {
-                name: t.apply(self.substitution)
-                for (name, t) in binding_types.items()
-            }
-
-            binding_predicates = self.substitution.apply_to_list(binding_predicates)
-
-            # Apply the substitution to the context because it may have
-            # narrowed the type (or changed type variables) in the type of
-            # other variables in the function (e.g. arguments).
-            context_tvars = assumptions.apply(self.substitution).free_type_vars()
-
-            # Find what type variables are in all the binding's types
-            ftvs_in_bindings = [t.free_type_vars() for t in binding_types.values()]
-            # Vars that appear in every binding
-            all_ftvs_in_bindings = types.FreeTypeVariables.intersection(ftvs_in_bindings)
-
-            deferred, retained = self.split(context_tvars, all_ftvs_in_bindings, binding_predicates)
-
-            # Decide if the monomorphism restriction applies.
-            # It applies if any of the bindings aren't for a lambda function.
-            restricted = any(
-                not isinstance(binding.value, syntax.ELambda)
-                for binding in expr.bindings
-            )
-
-            any_ftvs_in_bindings = types.FreeTypeVariables.union(ftvs_in_bindings)
-            any_ftvs_in_bindings -= context_tvars
-
-            if restricted:
-                any_ftvs_in_bindings -= types.FreeTypeVariables.union(
-                    [r.t.free_type_vars() for r in retained]
-                )
-
-                # Defer all the predicates so that they get defaulted later
-                deferred += retained
-                retained = []
-
-            # Now that the types of the bindings are known, use that information to
-            # generalize them.
-            inner_assumptions = assumptions.make_child({
-                name: types.Scheme.quantify(
-                    any_ftvs_in_bindings,
-                    types.Qualified(retained, t).apply(self.substitution)
-                )
-                for (name, t) in binding_types.items()
-            })
-
-            for binding in expr.bindings:
-                binding_type = binding_types[binding.name]
-                binding_qual = types.Qualified(retained, binding_type)
-                binding.t = binding_qual
-                expressions.append(binding)
-
-            preds, inner_t = self.infer_expression(inner_assumptions, expr.inner, expressions)
-
-            return (preds + deferred, inner_t)
+            return self.infer_let_binding(assumptions, expr)
 
         elif isinstance(expr, syntax.EIf):
             predicates = []
 
-            ps, test_t = self.infer_expression(assumptions, expr.test, expressions)
+            ps, test_t = self.infer_expression(assumptions, expr.test)
             self.unify_types(test_t, types.TConstructor('Bool'))
             predicates.extend(ps)
 
-            ps, if_t = self.infer_expression(assumptions, expr.if_case, expressions)
+            ps, if_t = self.infer_expression(assumptions, expr.if_case)
             predicates.extend(ps)
 
-            ps, else_t = self.infer_expression(assumptions, expr.else_case, expressions)
+            ps, else_t = self.infer_expression(assumptions, expr.else_case)
             predicates.extend(ps)
 
             result_t = self.next_type_var()
@@ -606,23 +548,240 @@ class Inference:
             return (predicates, result_t)
 
         elif isinstance(expr, syntax.ELambda):
-            # Compute the list first to ensure the order is stable
-            arg_tvars = [self.next_type_var() for _ in expr.arg_names]
-            arg_schemes = {
-                name: types.Scheme.to_scheme(tvar)
-                for (name, tvar) in zip(expr.arg_names, arg_tvars)
-            }
-            body_assumptions = assumptions.make_child(arg_schemes)
-
-            predicates, body_t = self.infer_expression(body_assumptions, expr.body, expressions)
-
-            # This type only gets generalized if it is bound to a name
-            # in a let binding.
-            lambda_t = types.make_function_type(arg_tvars, body_t)
-            return predicates, lambda_t
+            return self.infer_lambda(assumptions, expr)
 
         else:
             raise RuntimeError(f'Unhandled type of expression: {expr}')
+
+    def infer_lambda(self, assumptions, expr: syntax.ELambda, given_type=None):
+        if given_type is not None:
+            assert(isinstance(given_type, types.Type))
+            arg_types = types.get_arg_types(given_type)
+        else:
+            arg_types = [self.next_type_var() for _ in expr.arg_names]
+
+        arg_schemes = {
+            name: types.Scheme.to_scheme(t)
+            for (name, t)
+            in zip(expr.arg_names, arg_types)
+        }
+        body_assumptions = assumptions.make_child(arg_schemes)
+
+        predicates, body_t = self.infer_expression(body_assumptions, expr.body)
+
+        # This type only gets generalized if it is bound to a name
+        # in a let binding.
+        lambda_t = types.make_function_type(arg_types, body_t)
+
+        expr.t = lambda_t
+        self.syntax_given_types.append(expr)
+
+        return predicates, lambda_t
+
+    def infer_let_binding(self, assumptions, expr: syntax.ELet):
+        assert(isinstance(assumptions, Assumptions))
+
+        explicit_bindings, implicit_bindings = self.split_explicit_bindings(expr.bindings)
+
+        # Add assumptions for the explicit bindings
+        explicit_assumptions = self.get_assumptions_for_explicitly_typed(explicit_bindings)
+        assumptions = assumptions.make_child(explicit_assumptions)
+
+        # Infer the types of the implicit bindings
+        predicates, new_assumptions = self.infer_implicit_let_bindings(
+            assumptions, implicit_bindings
+        )
+        for (name, t) in new_assumptions.items():
+            assumptions.define(name, t)
+
+        # Check the types for the explict bindings
+        ps = self.check_explicit_bindings(assumptions, explicit_bindings)
+        predicates.extend(ps)
+
+        # Infer the type of the expression body
+        expr_preds, expr_t = self.infer_expression(assumptions, expr.inner)
+
+        return (predicates + expr_preds, expr_t)
+
+    def check_explicit_bindings(self, assumptions, bindings):
+        predicates = []
+
+        for binding in bindings:
+            scheme = assumptions.get_scheme(binding.name)
+            ps = self.check_explicit_binding(assumptions, binding, scheme)
+            predicates.extend(ps)
+
+        return predicates
+
+    def check_explicit_binding(self, assumptions, binding, scheme):
+        ''' This is nearly the same function as infer_explicit --
+        could they be changed to share code? '''
+
+        assert(isinstance(assumptions, Assumptions))
+        assert(isinstance(binding, syntax.Binding))
+
+        binding_type = self.instantiate(scheme)
+
+        # Find out what type would have been infered for this binding if it was implicitly typed
+        if isinstance(binding.value, syntax.ELambda):
+            predicates, inferred_type = self.infer_lambda(
+                assumptions,
+                binding.value,
+                given_type=binding_type.t
+            )
+        else:
+            predicates, inferred_type = self.infer_expression(assumptions, binding.value)
+
+        # Ensure that type is compatible with the explicit type
+        self.unify_types(inferred_type, binding_type.t)
+
+        # Rename the type variables to match the inferred type
+        binding_type = binding_type.apply(self.substitution)
+        assumptions = assumptions.apply(self.substitution)
+
+        # Make the scheme be as general as it is allowed to be in this context
+        assumption_tvars = assumptions.free_type_vars()
+        binding_tvars = binding_type.t.free_type_vars() - assumption_tvars
+        updated_scheme = types.Scheme.quantify(binding_tvars, binding_type)
+
+        # This would happen if any of the type variables in the user-defined type
+        # got replaced with a concrete type.
+        if updated_scheme != scheme:
+            raise types.TypeError(
+                f'Type signature too general for {binding.name},' +
+                f' expected scheme: {scheme}, actual scheme: {updated_scheme}'
+            )
+
+        predicates = self.substitution.apply_to_list(predicates)
+
+        # Find predicates that aren't entailed by the predicates in the user-defined type
+        new_predicates = [
+            p for p in predicates
+            if not self.entails(binding_type.predicates, p)
+        ]
+
+        deferred, retained = self.split(assumption_tvars, binding_tvars, new_predicates)
+        if retained:
+            raise types.TypeError(f'The signature for {binding.name} is missing predicates {retained}')
+
+        # Apply the substitution again because it may have been updated by
+        # applying default types in the call to .split()
+        binding.t = binding_type.apply(self.substitution)
+        self.syntax_given_types.append(binding)
+
+        return deferred
+
+    def infer_implicit_let_bindings(self, outer_assumptions, bindings):
+        ''' This is nearly the same as infer_implicit_group - could they share code? '''
+
+        # Create a type variable to represent the type of each binding
+        tvars = {
+            binding.name: self.next_type_var()
+            for binding in bindings
+        }
+
+        # Create new assumptions for all the bindings
+        new_assumptions = {
+            name: types.Scheme.to_scheme(tvar)
+            for (name, tvar) in tvars.items()
+        }
+        assumptions = outer_assumptions.make_child(new_assumptions)
+
+        predicates = []
+
+        # Infer the type of each binding
+        for binding in bindings:
+            assert(isinstance(binding, syntax.Binding))
+
+            ps, t = self.infer_expression(assumptions, binding.value)
+            self.unify_types(t, tvars[binding.name])
+            predicates.extend(ps)
+
+
+        # Update the predicates and types using the current substitution
+        predicates = self.substitution.apply_to_list(predicates)
+        binding_types = {
+            name: t.apply(self.substitution)
+            for (name, t) in tvars.items()
+        }
+
+        # Figure out which type variables are still coming from the surrounding
+        # context
+        updated_assumptions = outer_assumptions.apply(self.substitution)
+        context_tvars = updated_assumptions.free_type_vars()
+
+        # Find the type variables mentioned in the binding's types
+        all_binding_vars = [t.free_type_vars() for t in binding_types.values()]
+        binding_tvars = types.FreeTypeVariables.intersection(all_binding_vars)
+
+        # Use those sets of type variables to decide which predicates to defer
+        deferred, retained = self.split(context_tvars, binding_tvars, predicates)
+
+        # If calling split defaulted any types, apply that information
+        # before trying to generalize these types
+        binding_types = {
+            name: t.apply(self.substitution)
+            for (name, t) in binding_types.items()
+        }
+
+        # Sort the predicates in a stable order to make tests reliable
+        retained = sorted(retained, key=lambda p: (p.tclass.name, str(p.t)))
+
+        # Decide if the monomorphism restriction applies
+        restricted = any(
+            not isinstance(binding.value, syntax.ELambda)
+            for binding in bindings
+        )
+
+        generalize_vars = types.FreeTypeVariables.union(all_binding_vars) - context_tvars
+
+        if restricted:
+            # If the monomorphism restriction applies, no predicates are retained.
+            # This also means that every type variable in those predicates has
+            # to be fixed in the context.
+            generalize_vars -= types.FreeTypeVariables.of_list(retained)
+            binding_qualified_types = {
+                name: types.Qualified([], t)
+                for (name, t) in binding_types.items()
+            }
+            for binding in bindings:
+                binding.t = binding_qualified_types[binding.name]
+                self.syntax_given_types.append(binding)
+
+            schemes = {
+                name: types.Scheme.quantify(generalize_vars, qual_type)
+                for (name, qual_type) in binding_qualified_types.items()
+            }
+            return (deferred + retained, schemes)
+        else:
+            # If the monomorphism doesn't apply, the retained predicates appear
+            # on every binding's type.
+            binding_qualified_types = {
+                name: types.Qualified(retained, t)
+                for (name, t) in binding_types.items()
+            }
+            for binding in bindings:
+                binding.t = binding_qualified_types[binding.name]
+                self.syntax_given_types.append(binding)
+
+            schemes = {
+                name: types.Scheme.quantify(generalize_vars, qual_type)
+                for (name, qual_type) in binding_qualified_types.items()
+            }
+            return (deferred, schemes)
+
+    def split_explicit_bindings(self, bindings):
+        explicit_bindings = []
+        implicit_bindings = []
+
+        for binding in bindings:
+            assert(isinstance(binding, syntax.Binding))
+            if binding.t is not None:
+                explicit_bindings.append(binding)
+            else:
+                implicit_bindings.append(binding)
+
+        return (explicit_bindings, implicit_bindings)
 
     def split(self, context_tvars, binding_tvars, predicates):
         predicates = self.reduce(predicates)
@@ -960,7 +1119,7 @@ class Assumptions:
 
 
 def split_bindings(functions):
-    ''' Splits bindings into those that are explicitly typed (the first return value) and those that are implicitly typed (the second return value).
+    ''' Splits bindings into those that are explicitly typed and those that are implicitly typed
 
     The implicitly-typed functions are returned as a topologically sorted list of groups of
     functions. Each group is a list of functions that are mutually recursive.
@@ -970,7 +1129,7 @@ def split_bindings(functions):
     implicit_typed = [f for f in functions if f.t is None]
     implicit_typed_groups = group_call_graph(implicit_typed)
 
-    return explicit_typed, implicit_typed_groups
+    return BindGroup(explicit_typed, implicit_typed_groups)
 
 
 def group_call_graph(functions):
@@ -1076,6 +1235,12 @@ class Scope:
 
     def is_defined(self, name):
         return name in self.names or (self.parent and self.parent.is_defined(name))
+
+
+class BindGroup:
+    def __init__(self, explicit_typed, implicit_typed_groups):
+        self.explicit_typed = explicit_typed
+        self.implicit_typed_groups = implicit_typed_groups
 
 
 def pred(class_name, t):
